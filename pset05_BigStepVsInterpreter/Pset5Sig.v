@@ -28,27 +28,27 @@ Module Type S.
     | Plus e1 e2 => exists a1 a2, interp e1 v a1 /\ interp e2 v a2 /\ a = a1 + a2
     end.
 
-  (*[4%]*)
+  (*[4%] DONE*)
   Parameter values_alias_for_grading: arith -> valuation -> nat -> Prop.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter values_example: forall a,
       2 <= a ->
       values_alias_for_grading (Plus (Var "y") (Var "z")) ($0 $+ ("y", 2)) a.
 
-  (*[4%]*)
+  (*[4%] DONE*)
   Parameter interp_to_values: forall e v a,
       interp e v a -> values_alias_for_grading e v a.
 
-  (*[4%]*)
+  (*[4%] DONE*)
   Parameter values_to_interp: forall e v a,
       values_alias_for_grading e v a -> interp e v a.
 
-  (*[2%]*)
+  (*[2%] DONE*)
   Parameter values_to_interp_induction_on_e: forall e v a,
       values_alias_for_grading e v a -> interp e v a.
 
-  (*[7%]*)
+  (*[7%] DONE*)
   Parameter eval_alias_for_grading: valuation -> cmd -> valuation -> Prop.
 
   Example the_answer_is_42 :=
@@ -60,27 +60,27 @@ Module Type S.
                            (Assign "answer" (Const 42))
                            (Assign "answer" (Const 24)))).
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter read_last_value: forall x v c n,
       values_alias_for_grading (Var x) (v $+ (x, c)) n -> n = c.
 
-  (*[7%]*)
+  (*[7%] DONE*)
   Parameter the_answer_is_indeed_42:
     forall v, eval_alias_for_grading $0 the_answer_is_42 v -> v $? "answer" = Some 42.
 
   Example loop_of_unknown_length :=
     (While (Var "x") (Assign "counter" (Plus (Var "counter") (Const 1)))).
 
-  (*[7%]*)
+  (*[7%] DONE*)
   Parameter eval_loop_of_unknown_length: forall n initialCounter,
       eval_alias_for_grading ($0 $+ ("counter", initialCounter))
                              loop_of_unknown_length
                              ($0 $+ ("counter", initialCounter + n)).
 
-  (*[4%]*)
+  (*[4%] DONE*)
   Parameter run: nat -> valuation -> cmd -> valuation -> Prop.
 
-  (*[14%]*)
+  (*[14%] DONE*)
   Parameter run_to_eval: forall fuel v1 c v2,
       run fuel v1 c v2 ->
       eval_alias_for_grading v1 c v2.
@@ -88,22 +88,22 @@ Module Type S.
   Definition wrun (v1: valuation) (c: cmd) (v2: valuation): Prop :=
     exists fuel, run fuel v1 c v2.
 
-  (*[17%]*)
+  (*[17%] DONE*)
   Parameter run_monotone: forall fuel1 fuel2 v1 c v2,
       fuel1 <= fuel2 ->
       run fuel1 v1 c v2 ->
       run fuel2 v1 c v2.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter WRunSkip: forall v,
       wrun v Skip v.
 
-  (*[2%]*)
+  (*[2%] DONE*)
   Parameter WRunAssign: forall v x e a,
       interp e v a ->
       wrun v (Assign x e) (v $+ (x, a)).
 
-  (*[2%]*)
+  (*[2%] DONE*)
   Parameter WRunSeq: forall v c1 v1 c2 v2,
       wrun v c1 v1 ->
       wrun v1 c2 v2 ->

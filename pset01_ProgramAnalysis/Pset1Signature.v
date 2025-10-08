@@ -8,7 +8,7 @@
 
 (*
  * Start by installing the Rocq system using opam.
- * 
+ *
  * If you're on a Windows machine, please set up WSL with these instructions:
  * <https://learn.microsoft.com/en-us/windows/wsl/install>
  * Setting up opam and Rocq in pure Windows is simply not worth the effot.
@@ -32,7 +32,7 @@
  * It will also be *essential* to install a UI for editing Rocq proofs!
  * You are welcome to set-up your editor/IDE of choice, but we will only
  * support debugging VSCode setups.
- * 
+ *
  * To get started, download the VsCoq extension here:
  * <https://marketplace.visualstudio.com/items?itemName=maximedenes.vscoq>.
  * Next you'll need to install the language server. **DO NOT** use the command
@@ -215,6 +215,7 @@ Module Type S.
       run (concatProg p1 p2) initState =
       run p2 (run p1 initState).
 
+  (* Compute 4/0. *)
   (* As there is no intuitive or broadly useful definition for x/0,
      common processors handle it differently. We would like to model the
      portable behavior of a program, that is, its behavior to the extent
@@ -243,9 +244,9 @@ Module Type S.
 
   (* Static analysis to validate that a program never divides by 0 *)
 
-  (* The final goal of this pset is to implement [validate : Prog -> bool] 
-   * Note that this problem is harder than the previous ones and will take 
-   * more time! 
+  (* The final goal of this pset is to implement [validate : Prog -> bool]
+   * Note that this problem is harder than the previous ones and will take
+   * more time!
    *)
   (*[5%]*) Parameter validate : Prog -> bool.
   (* such that if this function returns [true], the program would not trigger
@@ -291,7 +292,7 @@ Module Type S.
     forall s, runPortable p s = (true, run p s).
 End S.
 
-  
+
 (*|
 TIPS: A few things to keep in mind as you work through pset 1
 =============================================================
@@ -544,10 +545,10 @@ IHn is strong enough now!
     rewrite <- IHn.
     linear_arithmetic.
 Qed.
-  
+
 
 (*|
-HINTS: A few hints to help you if you get stuck on certain 
+HINTS: A few hints to help you if you get stuck on certain
        problems in pset 1.
        Beware! Don't read further if you don't want spoilers!
 =============================================================

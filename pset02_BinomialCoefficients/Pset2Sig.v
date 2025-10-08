@@ -12,7 +12,7 @@ Module Type S.
     | n + 1 => (n + 1) * recurse
     end.
 
-  (*[5%]*) Parameter exp: N -> N -> N.
+  (*[5%] DONE*) Parameter exp: N -> N -> N.
   Axiom test_exp_2_3: exp 2 3 = 8.
   Axiom test_exp_3_2: exp 3 2 = 9.
   Axiom test_exp_4_1: exp 4 1 = 4.
@@ -43,10 +43,10 @@ Module Type S.
     | h :: t => 1 + len t
     end.
 
-  (*[12%]*)
+  (*[12%] DONE*)
   Axiom seq_spec: forall f count i start, i < count -> ith i (seq f count start) = f (start + i).
 
-  (*[12%]*)
+  (*[12%] DONE*)
   Axiom ith_out_of_bounds_0: forall i l, len l <= i -> ith i l = 0.
 
   Definition C(n k: N): N := fact n / (fact (n - k) * fact k).
@@ -57,16 +57,16 @@ Module Type S.
     | k + 1 => recurse * (n - k) / (k + 1)
     end.
 
-  (*[7%]*)
+  (*[7%] DONE*)
   Axiom fact_nonzero: forall n, fact n <> 0.
 
-  (*[7%]*)
+  (*[7%] DONE*)
   Axiom Cn0: forall n, C n 0 = 1.
 
-  (*[7%]*)
+  (*[7%] DONE*)
   Axiom Cnn: forall n, C n n = 1.
 
-  (*[25%]*)
+  (*[25%] DONE*)
   Axiom bcoeff_correct: forall n k, k <= n -> bcoeff n k = C n k.
 
   Definition Pascal's_rule: Prop := forall n k,
@@ -92,7 +92,7 @@ End S.
 
 
 (*|
-HINTS: A hint to help you if you get stuck on certain 
+HINTS: A hint to help you if you get stuck on certain
        problems in Pset 2.
        Beware! Don't read further if you don't want spoilers!
 =============================================================

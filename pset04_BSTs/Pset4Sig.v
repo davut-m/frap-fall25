@@ -129,7 +129,7 @@ a little.
 *)
 
 (*|
-HINTS: A few hints to help you if you get stuck on certain 
+HINTS: A few hints to help you if you get stuck on certain
        problems in Pset 4.
        Beware! Don't read further if you don't want spoilers!
 =============================================================
@@ -174,7 +174,7 @@ HINTS: A few hints to help you if you get stuck on certain
 
 
 (*|
-HINT 1: 
+HINT 1:
 =======
 Definition rotR (T : tree) :=
   match T with
@@ -262,82 +262,12 @@ Consider [cases (rightmost tr2)] or [cases (is_leaf tr2)] instead of [cases
 tr2]. Not breaking apart the tree itself can avoid a mess.
 *)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 (*|
 HINT 3:
 =======
 A convenient way to specify "the largest element in this set" is to say that
 all elements in this set are no larger than the given element.
 *)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -349,41 +279,6 @@ for merging just any two trees. However, it is called in a rather specific
 scenario. (And it is feasible to prove its use by inlining it, but we found a
 separate specification helpful.) Why is it bad to call merge_ordered [3,4] [1,2]?
 *)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 (*|

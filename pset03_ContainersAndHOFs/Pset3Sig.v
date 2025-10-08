@@ -39,13 +39,13 @@ Module Type S.
   Definition id {A : Type} (x : A) : A := x.
   Definition compose {A B C : Type} (g : B -> C) (f : A -> B) (x : A) : C := g (f x).
 
-  (*[0.5%]*)
+  (*[0.5%] DONE*)
   Parameter compose_id_l : forall (A B : Type) (f : A -> B), compose id f = f.
 
-  (*[0.5%]*)
+  (*[0.5%] DONE*)
   Parameter compose_id_r : forall (A B : Type) (f : A -> B), compose f id = f.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter compose_assoc :
     forall (A B C D : Type) (f : A -> B) (g : B -> C) (h : C -> D),
       compose h (compose g f) = compose (compose h g) f.
@@ -57,35 +57,35 @@ Module Type S.
     end.
 
   Parameter exp : nat -> nat -> nat.
-  (*[0.25%]*)
+  (*[0.25%] DONE*)
   Parameter test_exp_3_2 : exp 3 2 = 9.
-  (*[0.25%]*)
+  (*[0.25%] DONE*)
   Parameter test_exp_4_1 : exp 4 1 = 4.
-  (*[0.25%]*)
+  (*[0.25%] DONE*)
   Parameter test_exp_5_0 : exp 5 0 = 1.
-  (*[0.25%]*)
+  (*[0.25%] DONE*)
   Parameter test_exp_1_3 : exp 1 3 = 1.
 
   (* 1b) HOFs: Left inverses *)
 
   Definition left_inverse{A B: Type}(f: A -> B)(g: B -> A): Prop := compose g f = id.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter plus2minus2 : left_inverse (fun x : nat => x + 2) (fun x : nat => x - 2).
 
-  (*[2.5%]*)
+  (*[2.5%] DONE*)
   Parameter minus2plus2 : ~ left_inverse (fun x : nat => x - 2) (fun x : nat => x + 2).
 
-  (*[4%]*)
+  (*[4%] DONE*)
   Parameter left_invertible_injective:
     forall {A} (f g: A -> A),
       left_inverse f g ->
       (forall x y, f x = f y -> x = y).
 
-  (*[0.25%]*)
+  (*[0.25%] DONE*)
   Parameter left_inverse_id : forall {A : Type}, left_inverse (@id A) (@id A).
 
-  (*[8%]*)
+  (*[8%] DONE*)
   Parameter invert_selfCompose :
     forall {A : Type} (f g : A -> A) (n : nat), left_inverse f g -> left_inverse (selfCompose f n) (selfCompose g n).
 
@@ -95,87 +95,87 @@ Module Type S.
 
   Parameter lookup : forall {A : Type}, list bool -> bitwise_trie A -> option A.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter lookup_example1 : lookup nil (Node Leaf (None : option nat) Leaf) = None.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter lookup_example2 :
     lookup (false :: true :: nil)
            (Node (Node Leaf (Some 2) Leaf) None (Node (Node Leaf (Some 1) Leaf) (Some 3) Leaf)) =
     Some 1.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter lookup_empty : forall {A : Type} (k : list bool), lookup k (Leaf : bitwise_trie A) = None.
 
   Parameter insert : forall {A : Type}, list bool -> option A -> bitwise_trie A -> bitwise_trie A.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter insert_example1 : lookup nil (insert nil None (Node Leaf (Some 0) Leaf)) = None.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter insert_example2 :
     lookup nil (insert (true :: nil) (Some 2) (Node Leaf (Some 0) Leaf)) = Some 0.
 
-  (*[8%]*)
+  (*[8%] DONE*)
   Parameter lookup_insert :
     forall {A : Type} (k : list bool) (v : option A) (t : bitwise_trie A), lookup k (insert k v t) = v.
 
   Parameter merge : forall {A : Type}, bitwise_trie A -> bitwise_trie A -> bitwise_trie A.
 
-  (*[0.25%]*)
+  (*[0.25%] DONE*)
   Parameter merge_example1 :
     merge (Node Leaf (Some 1) Leaf) (Node Leaf (Some 2) Leaf) =
     Node Leaf (Some 1) Leaf.
 
-  (*[0.5%]*)
+  (*[0.5%] DONE*)
   Parameter merge_example2 :
     merge Leaf (Node Leaf (@None nat) Leaf) = Node Leaf None Leaf.
 
-  (*[0.5%]*)
+  (*[0.5%] DONE*)
   Parameter merge_example3 :
     merge (Node Leaf None Leaf) (Node Leaf (Some 2) Leaf) =
     Node Leaf (Some 2) Leaf.
 
-  (*[3%]*)
+  (*[3%] DONE*)
   Parameter left_lookup_merge : forall {A : Type} (t1 t2 : bitwise_trie A) k v,
       lookup k t1 = Some v ->
       lookup k (merge t1 t2) = Some v.
 
-  (*[4%]*)
+  (*[4%] DONE*)
   Parameter lookup_merge_None : forall {A : Type} (t1 t2 : bitwise_trie A) k,
       lookup k (merge t1 t2) = None ->
       lookup k t1 = None /\ lookup k t2 = None.
 
-  (*[5%]*)
+  (*[5%] DONE*)
   Parameter merge_selfCompose : forall {A : Type} n (t1 t2 : bitwise_trie A),
       0 < n ->
       selfCompose (merge t1) n t2 = merge t1 t2.
 
   Parameter mirror : forall {A : Type}, tree A -> tree A.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter mirror_test1 :
     mirror (Node Leaf 1 (Node Leaf 2 (Node Leaf 3 Leaf))) =
     Node (Node (Node Leaf 3 Leaf) 2 Leaf) 1 Leaf.
 
-  (*[0.5%]*)
+  (*[0.5%] DONE*)
   Parameter mirror_mirror_id : forall {A : Type} (t : tree A),
       mirror (mirror t) = t.
 
-  (*[3%]*)
+  (*[3%] DONE*)
   Parameter flatten_mirror_rev : forall {A : Type} (t : tree A),
       flatten (mirror t) = rev (flatten t).
-    
+
   (* 2b) HOFs: tree_map *)
 
   Parameter tree_map : forall {A B : Type}, (A -> B) -> tree A -> tree B.
 
-  (*[1%]*)
+  (*[1%] DONE*)
   Parameter tree_map_example :
     tree_map (fun x : nat => x + 1) (Node (Node Leaf 1 Leaf) 2 (Node Leaf 3 (Node Leaf 4 Leaf))) =
     Node (Node Leaf 2 Leaf) 3 (Node Leaf 4 (Node Leaf 5 Leaf)).
 
-  (*[8%]*)
+  (*[8%] DONE*)
   Parameter tree_map_flatten :
     forall (A B : Type) (f : A -> B) (t : tree A), flatten (tree_map f t) = List.map f (flatten t).
 
@@ -187,18 +187,18 @@ Module Type S.
 
   Parameter tree_exists : forall {A: Type}, (A -> Prop) -> tree A -> Prop.
 
-  (*[0.5%]*)
+  (*[0.5%] DONE*)
   Parameter tree_exists_Leaf :
     forall (A : Type) (P : A -> Prop), ~ tree_exists P Leaf.
-  (*[3%]*)
+  (*[3%] DONE*)
   Parameter tree_forall_exists :
     forall (A : Type) (P : A -> Prop) (tr : tree A),
       tr <> Leaf -> tree_forall P tr -> tree_exists P tr.
 
-  (*[2%]*)
+  (*[2%] DONE*)
   (* Explain what tree_forall_sound means *)
 
-  (*[3%]*)
+  (*[3%] DONE*)
   Parameter tree_forall_sound :
     forall (A : Type) (P : A -> Prop) (tr : tree A),
       tree_forall P tr -> forall d : A, tree_exists (fun d' : A => d' = d) tr -> P d.
@@ -216,17 +216,17 @@ Module Type S.
       bst r (fun x => s x /\ d < x)
     end.
 
-  (*[3%]*)
+  (*[3%] DONE*)
   Parameter bst_implies :
     forall (tr : tree Z) (s : Z -> Prop), bst tr s -> tree_forall s tr.
 
-  (*[3%]*)
+  (*[3%] DONE*)
   Parameter bst_node_ordered :
     forall (l : tree Z) (d : Z) (r : tree Z) (s : Z -> Prop),
       bst (Node l d r) s ->
       tree_forall (fun x : Z => x < d) l /\ tree_forall (fun x : Z => d < x) r.
 
-  (*[6%]*)
+  (*[6%] DONE*)
   Parameter bst_iff :
     forall (tr : tree Z) (P Q : Z -> Prop),
       bst tr P -> (forall x : Z, P x <-> Q x) -> bst tr Q.
@@ -246,7 +246,7 @@ Module Type S.
       (forall x y, x < y <-> f x > f y) ->
       (forall x, P x <-> Q (f x)) ->
       bst (mirror (tree_map f tr)) Q.
-  
+
   Fixpoint bst_member (a: Z) (tr: tree Z) : bool :=
     match tr with
     | Leaf => false
@@ -367,7 +367,7 @@ Finally, since Rocq usually infers which argument a fixpoint is structurally dec
 
 
 (*|
-HINTS: A few hints to help you if you get stuck on certain 
+HINTS: A few hints to help you if you get stuck on certain
        problems in Pset 3.
        Beware! Don't read further if you don't want spoilers!
 =============================================================
