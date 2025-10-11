@@ -87,7 +87,7 @@ Module Swap.
     rewrite Nat.min_l by linear_arithmetic.
     rewrite Nat.min_l by linear_arithmetic.
     linear_arithmetic.
-  Qed.  
+  Qed.
 
   Lemma length_swap A (l : list A) n1 n2
     : length (swap n1 n2 l) = length l.
@@ -127,14 +127,14 @@ Module Swap.
   Proof.
     induct 1; simplify; cases n; simplify; eauto.
   Qed.
-  
+
   Lemma Forall2_skipn A B (R : A -> B -> Prop) l1 l2
     : Forall2 R l1 l2 ->
       forall n,
         Forall2 R (skipn n l1) (skipn n l2).
   Proof.
     induct 1; simplify; cases n; simplify; eauto.
-  Qed.  
+  Qed.
 
   Local Lemma Forall2_swap' A B (R : A -> B -> Prop) l1 l2 a b
     : Forall2 R l1 l2 ->
@@ -153,7 +153,7 @@ Module Swap.
       | apply List.Forall2_cons
       | apply Forall2_nth].
     linear_arithmetic.
-  Qed.  
+  Qed.
 
   Lemma Forall2_swap A B (R : A -> B -> Prop) l1 l2
     : Forall2 R l1 l2 ->
@@ -191,19 +191,19 @@ Module Swap.
     replace (n2 - S n1 - (Datatypes.length l - S n1)) with 0 by linear_arithmetic.
     repeat change (firstn 0 _) with (@nil A).
     rewrite !app_nil_r.
-    
+
     cbn [app].
     rewrite <- !app_assoc.
     reflexivity.
   Qed.
-  
+
   Lemma app_swap1
     : forall (A : Type) (l l' : list A) (n1 n2 : nat),
-      n1 < n2 -> n2 < Datatypes.length l -> 
+      n1 < n2 -> n2 < Datatypes.length l ->
       swap n1 n2 (l ++ l') = (swap n1 n2 l)++l'.
   Proof.
     simplify.
-    unfold swap. 
+    unfold swap.
     destruct (Nat.leb_spec n2 n1);
       simplify; auto.
     destruct (Nat.leb_spec (length l) n2);
@@ -294,7 +294,7 @@ Fixpoint val_reduce (f : stack_val -> stack_val -> stack_val) vl vacc :=
   | val_lit _ => val_lit 0
   end.
 
-(*[4%]*)
+(*[4%] DONE*)
 Parameter val_flatmap_sound
   : forall t1 t2 f l,
     (forall x, val_well_typed x t1 -> val_well_typed (f x) (ty_list t2)) ->
@@ -353,7 +353,7 @@ Fixpoint interp_cmd (c : stack_cmd) (s : list stack_val) : list stack_val :=
       let (l,s1) := stack_pop s in
       let out := val_flatmap (fun x => stack_peek (interp_cmd cf [x])) l in
       interp_cmd c' (out::s1)
-  | cmd_reduce cf c' => 
+  | cmd_reduce cf c' =>
       let (l,s) := stack_pop s in
       let (acc,s) := stack_pop s in
       let out := val_reduce (fun acc x => stack_peek (interp_cmd cf [x;acc])) l acc in
@@ -361,24 +361,24 @@ Fixpoint interp_cmd (c : stack_cmd) (s : list stack_val) : list stack_val :=
   | cmd_skip => s
   end.
 
-(*[4%]*)
+(*[4%] DONE*)
 Parameter interp_sound
   : forall S c S',
     cmd_well_typed S c S' ->
     forall s, stack_well_typed s S ->
-              stack_well_typed (interp_cmd c s) S'.  
+              stack_well_typed (interp_cmd c s) S'.
 
-(*[2%]*)
+(*[2%] DONE*)
 Parameter cmd_seq : stack_cmd -> stack_cmd -> stack_cmd.
 
-(*[2%]*)
+(*[2%] DONE*)
 Parameter cmd_seq_wt
   : forall S1 S2 S3 c1 c2,
     cmd_well_typed S1 c1 S2 ->
     cmd_well_typed S2 c2 S3 ->
     cmd_well_typed S1 (cmd_seq c1 c2) S3.
 
-(*[3%]*)
+(*[3%] DONE*)
 Parameter interp_seq
   : forall c1 c2 s, interp_cmd (cmd_seq c1 c2) s
                     = interp_cmd c2 (interp_cmd c1 s).
@@ -482,7 +482,7 @@ Parameter loop_fuse_correct
 End S.
 
 (*|
-HINTS: A few hints to help you if you get stuck on certain 
+HINTS: A few hints to help you if you get stuck on certain
        problems in Pset 6.
        Beware! Don't read further if you don't want spoilers!
 =============================================================
@@ -527,7 +527,7 @@ HINTS: A few hints to help you if you get stuck on certain
 
 
 (*|
-HINT 1: 
+HINT 1:
 =======
 This lemma is useful:
 Lemma val_reduce_sound t1 t2 f l

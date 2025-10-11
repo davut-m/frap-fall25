@@ -80,7 +80,7 @@ fine.
   but do take the time to convince yourself that your lemmas make sense, so that
   you don't waste time using incorrect lemmas.
 
-- We have included plenty of hints below in the HINTS section of the 
+- We have included plenty of hints below in the HINTS section of the
   signature file.
 |*)
 
@@ -149,7 +149,7 @@ Local Hint Constructors Forall2 : core.
 (* Here are some definitions that we will use in the interpreter.
    Many of them have dummy cases that we do not expect to hit.
    Specifically, the benefit of all of the typing judgments is that
-   they guarantee these cases will never happen. 
+   they guarantee these cases will never happen.
  *)
 
 Definition stack_unop f (s : list stack_val) :=
@@ -208,12 +208,76 @@ Fixpoint val_reduce (f : stack_val -> stack_val -> stack_val) vl vacc :=
   to prove, but you should come up with your own for the other functions as
   needed.
  *)
+Lemma val_app_sound t v1 v2 :
+  val_well_typed v1 (ty_list t) -> val_well_typed v2 (ty_list t) ->
+  val_well_typed (val_app v1 v2) (ty_list t).
+Proof.
+  induct v1; simplify.
+  invert H.
+  assumption.
+  invert H.
+  apply val_cons_wt.
+  assumption.
+  apply IHv1_2.
+  assumption.
+  assumption.
+Qed.
+
 Lemma val_flatmap_sound t1 t2 f l
   : (forall x, val_well_typed x t1 -> val_well_typed (f x) (ty_list t2)) ->
     val_well_typed l (ty_list t1) ->
     val_well_typed (val_flatmap f l) (ty_list t2).
 Proof.
-Admitted.
+  induct l.
+  simplify.
+  - invert H0.
+  - simplify. apply val_nil_wt.
+  - simplify.
+    invert H0.
+    apply val_app_sound.
+    apply H with (x:= l1); assumption.
+    eapply IHl2.
+    assumption.
+    assumption.
+Qed.
+
+Lemma stack_unop_sound f t1 t2 S s :
+  (forall v, val_well_typed v t1 -> val_well_typed (f v) t2) ->
+  stack_well_typed s (t1::S) ->
+  stack_well_typed (stack_unop f s) (t2::S).
+Proof.
+  simplify.
+  destruct s; simplify.
+  invert H0.
+  invert H0.
+  pose (H s H4); simplify.
+  econstructor.
+  assumption.
+  assumption.
+Qed.
+
+Lemma stack_binop_sound f t1 t2 t3 S s :
+  (forall v1 v2, val_well_typed v1 t1 -> val_well_typed v2 t2 -> val_well_typed (f v1 v2) t3) ->
+  stack_well_typed s (t1::t2::S) ->
+  stack_well_typed (stack_binop f s) (t3::S).
+Proof.
+  simplify.
+  destruct s.
+  invert H0.
+  invert H0.
+  simplify.
+  cases s0.
+  econstructor.
+  invert H6.
+
+  invert H6.
+  invert H6.
+  eapply H in H4.
+  econstructor.
+  apply H4.
+  assumption.
+  assumption.
+Qed.
 
 (*
   Now that we have values, we can define our syntax of commands.
@@ -308,7 +372,7 @@ Fixpoint interp_cmd (c : stack_cmd) (s : list stack_val) : list stack_val :=
       let (l,s1) := stack_pop s in
       let out := val_flatmap (fun x => stack_peek (interp_cmd cf [x])) l in
       interp_cmd c' (out::s1)
-  | cmd_reduce cf c' => 
+  | cmd_reduce cf c' =>
       let (l,s) := stack_pop s in
       let (acc,s) := stack_pop s in
       let out := val_reduce (fun acc x => stack_peek (interp_cmd cf [x;acc])) l acc in
@@ -333,13 +397,94 @@ Fixpoint interp_cmd (c : stack_cmd) (s : list stack_val) : list stack_val :=
   look at `val_flatmap_sound` for inspiration.
   If you're really stuck, read HINT 1 in Pset6Sig.v.
  *)
+Lemma val_reduce_sound t1 t2 f l
+  : (forall x acc', val_well_typed x t1 ->
+                    val_well_typed acc' t2 ->
+                    val_well_typed (f acc' x) t2) ->
+    val_well_typed l (ty_list t1) ->
+    forall acc,
+    val_well_typed acc t2 ->
+    val_well_typed (val_reduce f l acc) t2.
+Proof.
+  induct l; simplify.
+  invert H0.
+  assumption.
+  invert H0.
+
+  pose (H l1 acc H5 H1).
+  propositional.
+  pose (H3 ((f acc l1)) v).
+  apply v0.
+Qed.
+
 Lemma interp_sound S c S'
   : cmd_well_typed S c S' ->
     forall s, stack_well_typed s S ->
               stack_well_typed (interp_cmd c s) S'.
 Proof.
-Admitted.
-  
+  simplify.
+  induct H.
+  - apply IHcmd_well_typed.
+    econstructor.
+    assumption.
+    assumption.
+  - apply IHcmd_well_typed.
+    eapply stack_unop_sound.
+    apply H.
+    assumption.
+  - apply IHcmd_well_typed.
+    eapply stack_binop_sound.
+    apply H.
+    assumption.
+  - apply IHcmd_well_typed.
+    invert H2.
+    simplify. linear_arithmetic.
+    Search(swap).
+    eapply Forall2_swap.
+    econstructor.
+    assumption.
+    assumption.
+  - simplify.
+    destruct s.
+    + invert H1.
+    + invert H1.
+      apply IHcmd_well_typed1.
+      econstructor.
+      ++eapply val_flatmap_sound.
+        simplify.
+        assert (stack_well_typed [x] [t1]).
+        simplify.
+        econstructor.
+        apply H1.
+        econstructor.
+        pose proof (IHcmd_well_typed2 [x] H2).
+        invert H3.
+        assumption.
+        assumption.
+      ++ assumption.
+  - simplify.
+    destruct s.
+    invert H1.
+    invert H1.
+    destruct s0.
+    invert H7.
+    invert H7.
+    eapply IHcmd_well_typed1.
+    econstructor.
+
+    eapply val_reduce_sound.
+    simplify.
+    assert (stack_well_typed [x; acc'] [t; t_acc]).
+    { simplify. econstructor. apply H1. econstructor. assumption. econstructor. }
+    pose proof (IHcmd_well_typed2 [x; acc'] H3).
+    invert H6.
+    assumption.
+    assumption.
+    assumption.
+    assumption.
+  - simplify; assumption.
+Qed.
+
 
 (*
   Sometimes it's useful to combine two sequences of commands.
@@ -347,22 +492,49 @@ Admitted.
   concatenation of its inputs and you can prove the two following
   lemmas.
  *)
-Fixpoint cmd_seq (c1 c2 : stack_cmd) : stack_cmd.
-Admitted.
-
+Fixpoint cmd_seq (c1 c2 : stack_cmd) : stack_cmd :=
+  match c1 with
+    | cmd_atom v c' => cmd_atom v (cmd_seq c' c2)
+    | cmd_unop f c' => cmd_unop f (cmd_seq c' c2)
+    | cmd_binop f c' => cmd_binop f (cmd_seq c' c2)
+    | cmd_swap n1 n2 c' => cmd_swap n1 n2 (cmd_seq c' c2)
+    | cmd_flatmap cf c' => cmd_flatmap cf (cmd_seq c' c2)
+    | cmd_reduce cf c' => cmd_reduce cf (cmd_seq c' c2)
+    | cmd_skip => c2
+  end.
 
 Lemma cmd_seq_wt S1 S2 S3 c1 c2
   : cmd_well_typed S1 c1 S2 ->
     cmd_well_typed S2 c2 S3 ->
     cmd_well_typed S1 (cmd_seq c1 c2) S3.
 Proof.
-Admitted.
+  induction 1; simplify.
+  econstructor; eauto.
+  econstructor; eauto.
+  econstructor; eauto.
+  econstructor; eauto.
+  econstructor; eauto.
+  econstructor; eauto.
+  assumption.
+Qed.
 
 Lemma interp_seq c1 c2 s
   : interp_cmd (cmd_seq c1 c2) s
     = interp_cmd c2 (interp_cmd c1 s).
 Proof.
-Admitted.
+  induct c1; simplify.
+  eapply IHc1.
+  eapply IHc1.
+  eapply IHc1.
+  eapply IHc1.
+
+  cases (stack_pop s).
+  eapply IHc1_2.
+
+  cases (stack_pop s). cases (stack_pop l).
+  eapply IHc1_2.
+  equality.
+Qed.
 
 
 
@@ -389,7 +561,7 @@ Fixpoint partial_eval c :=
       | cmd_binop f c'' => cmd_unop (f v) c''
       | c'_fused => cmd_atom v c'_fused
       end
-  | cmd_unop f c' => 
+  | cmd_unop f c' =>
       match partial_eval c' with
       | cmd_unop g c'' => cmd_unop (fun v => g (f v)) c''
       | cmd_binop g c'' => cmd_binop (fun v1 v2 => g (f v1) v2) c''
@@ -400,7 +572,7 @@ Fixpoint partial_eval c :=
       | cmd_unop g c'' => cmd_binop (fun v1 v2 => g (f v1 v2)) c''
       | c'_fused => cmd_binop f c'_fused
       end
-  | cmd_swap n1 n2 c' => cmd_swap n1 n2 (partial_eval c')                 
+  | cmd_swap n1 n2 c' => cmd_swap n1 n2 (partial_eval c')
   | cmd_flatmap cf1 c' => cmd_flatmap (partial_eval cf1) (partial_eval c')
   | cmd_reduce cf c' => cmd_reduce (partial_eval cf) (partial_eval c')
   | cmd_skip => cmd_skip
@@ -486,7 +658,7 @@ Qed.
 
 
 
-(* 
+(*
   Now that we've warmed up, let's get to the meat of this assigment,
   proving compiler correctness. Since we've defined the semantics of
   our language with an interpreter, we want to show that, given an
@@ -525,7 +697,7 @@ Admitted.
 
   The following lemma formalizes this idea.
 
-  
+
   If you're having trouble with the function argument to val_flatmap,
   read HINT 4 in Pset6Sig.v.
  *)
