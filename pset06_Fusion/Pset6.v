@@ -680,11 +680,354 @@ Qed.
   read HINT 3 in Pset6Sig.v.
 
  *)
+
+(*When we are working in a context where we assume everything is well-typed,
+the default functional extensionality isn't sufficient since it forgets about
+the type information.
+You'll need a specialized lemma that keeps it around. This is the one for `flatmap`,
+and the one for `reduce` is analogous.*)
+
+Lemma flatmap_funext_typed f g l t1
+  : (forall v, val_well_typed v t1 -> f v = g v) ->
+    val_well_typed l (ty_list t1) ->
+    val_flatmap f l = val_flatmap g l.
+Proof.
+  induct l. simplify.
+  equality.
+
+  simplify; equality.
+
+  intros.
+  invert H0.
+  pose (IHl2 t1 H H5).
+  simplify.
+  rewrite e.
+  rewrite (H l1).
+  equality.
+
+  assumption.
+Qed.
+
+Lemma reduce_funext_typed f g l t1 t2
+  : (forall v acc, val_well_typed v t1 -> val_well_typed acc t2 -> f acc v = g acc v) ->
+    (forall v acc, val_well_typed v t1 -> val_well_typed acc t2 -> val_well_typed (f acc v) t2) ->
+    val_well_typed l (ty_list t1) ->
+    forall acc, val_well_typed acc t2 ->
+    val_reduce f l acc = val_reduce g l acc.
+Proof.
+  induct l; simplify.
+  - equality.
+  - equality.
+  - intros.
+    invert H1.
+    simplify.
+    rewrite H.
+    eapply IHl2; try assumption.
+    eapply H.
+    eapply H0.
+    assumption.
+    specialize (H0 l1 acc); propositional.
+    rewrite H in H0.
+    assumption.
+    assumption.
+    assumption.
+    assumption.
+    assumption.
+Qed.
+
+Lemma partial_eval_atom_correct S S' v inner :
+  cmd_well_typed S (cmd_atom v inner) S' ->
+  forall s, stack_well_typed s S ->
+  interp_cmd (cmd_atom v inner) s = interp_cmd (match inner with
+    | cmd_atom v0 c0 => cmd_atom v (cmd_atom v0 c0)
+    | cmd_unop f c'' => cmd_atom (f v) c''
+    | cmd_binop f c'' => cmd_unop (f v) c''
+    | cmd_swap n1 n2 c0 => cmd_atom v (cmd_swap n1 n2 c0)
+    | cmd_flatmap cf c0 => cmd_atom v (cmd_flatmap cf c0)
+    | cmd_reduce cf c0 => cmd_atom v (cmd_reduce cf c0)
+    | cmd_skip => cmd_atom v cmd_skip
+    end) s.
+Proof.
+  intros Hwt s Hstk.
+  cases inner; auto; simplify; cases s; auto.
+  invert Hwt. invert H4. simplify. invert Hstk.
+Qed.
+
+Lemma partial_eval_unop_correct S S' f inner :
+  cmd_well_typed S (cmd_unop f inner) S' ->
+  forall s, stack_well_typed s S ->
+  interp_cmd (cmd_unop f inner) s = interp_cmd (match inner with
+    | cmd_atom v c0 => cmd_unop f (cmd_atom v c0)
+    | cmd_unop g c'' => cmd_unop (fun v : stack_val => g (f v)) c''
+    | cmd_binop g c'' => cmd_binop (fun v1 v2 : stack_val => g (f v1) v2) c''
+    | cmd_swap n1 n2 c0 => cmd_unop f (cmd_swap n1 n2 c0)
+    | cmd_flatmap cf c0 => cmd_unop f (cmd_flatmap cf c0)
+    | cmd_reduce cf c0 => cmd_unop f (cmd_reduce cf c0)
+    | cmd_skip => cmd_unop f cmd_skip
+    end) s.
+Proof.
+  intros Hwt s Hstk.
+  cases inner; auto; simplify; cases s; auto.
+  invert Hwt. invert H4. simplify. invert Hstk.
+  cases s0. simplify. invert H5. equality.
+Qed.
+
+Lemma partial_eval_binop_correct S S' f inner :
+  cmd_well_typed S (cmd_binop f inner) S' ->
+  forall s, stack_well_typed s S ->
+  interp_cmd (cmd_binop f inner) s = interp_cmd (match inner with
+    | cmd_atom v c0 => cmd_binop f (cmd_atom v c0)
+    | cmd_unop g c'' => cmd_binop (fun v1 v2 : stack_val => g (f v1 v2)) c''
+    | cmd_binop f0 c0 => cmd_binop f (cmd_binop f0 c0)
+    | cmd_swap n1 n2 c0 => cmd_binop f (cmd_swap n1 n2 c0)
+    | cmd_flatmap cf c0 => cmd_binop f (cmd_flatmap cf c0)
+    | cmd_reduce cf c0 => cmd_binop f (cmd_reduce cf c0)
+    | cmd_skip => cmd_binop f cmd_skip
+    end) s.
+Proof.
+  intros Hwt s Hstk.
+  cases inner; auto; simplify; cases s; auto.
+  invert Hwt. invert H4. cases s0; auto.
+  invert Hstk. simplify.
+  invert H5.
+Qed.
+
+
+
+Lemma flatmap_funext f g l
+  : (forall v, f v = g v) ->
+    val_flatmap f l = val_flatmap g l.
+Proof.
+  induct l.
+  simplify.
+  equality.
+
+  simplify.
+  equality.
+
+  simplify.
+  rewrite H.
+  rewrite IHl2 by (apply H).
+  trivial.
+Qed.
+
+Lemma val_app_assoc : forall a b c,
+  val_app a (val_app b c) = val_app (val_app a b) c.
+Proof.
+  induct a; simplify.
+  - equality.
+  - simplify.
+    equality.
+  - simplify.
+    rewrite IHa2.
+    equality.
+Qed.
+
+Lemma val_flatmap_app : forall h xs ys,
+  val_flatmap h (val_app xs ys) = val_app (val_flatmap h xs) (val_flatmap h ys).
+Proof.
+  induct xs; simplify.
+  - equality.
+  - simplify.
+    equality.
+  - simplify.
+    rewrite IHxs2.
+    simplify.
+    eapply val_app_assoc.
+Qed.
+
+Lemma flatmap_compose f g l
+  : val_flatmap g (val_flatmap f l)
+    = val_flatmap (fun x => val_flatmap g (f x)) l.
+Proof.
+  induct l; simplify.
+  - equality.
+  - equality.
+  - simplify.
+    rewrite val_flatmap_app.
+    rewrite IHl2.
+    equality.
+Qed.
+
+Lemma val_flatmap_pointwise f g s:
+  (forall x, f x = g x) ->
+  val_flatmap f s = val_flatmap g s.
+Proof.
+  simplify.
+
+  induct s; simplify.
+  equality.
+  equality.
+  pose (H s1).
+  rewrite <- e.
+  f_equal.
+  eapply IHs2.
+  assumption.
+Qed.
+
+Lemma stack_peek_helper t S s :
+    stack_well_typed s (t :: S) ->
+    val_well_typed (stack_peek s) t.
+Proof.
+  intros.
+  induct H.
+  specialize (IHForall2 t S).
+  propositional.
+Qed.
+
+Lemma helper c S S'
+  : cmd_well_typed S c S' ->
+    forall s, stack_well_typed s S -> interp_cmd (partial_eval c) s = interp_cmd c s.
+Proof.
+  induct c.
+  - simplify.
+    invert H.
+    rewrite <- partial_eval_atom_correct with (S:=S)(S':=S').
+    eapply IHc.
+    eapply H6.
+    econstructor.
+    assumption.
+    assumption.
+    eapply cmd_atom_wt.
+    eapply H4.
+    eapply partial_eval_sound.
+    assumption.
+    assumption.
+  - simplify.
+    rewrite <- partial_eval_unop_correct with (S:= S)(S':=S').
+    invert H.
+    invert H0.
+    simplify.
+    eapply IHc.
+    eapply H6.
+    econstructor.
+    eapply H4; assumption.
+    assumption.
+    simplify.
+    invert H.
+    eapply cmd_unop_wt.
+    eapply H4.
+    eapply partial_eval_sound; assumption.
+    assumption.
+  - simplify.
+    rewrite <- partial_eval_binop_correct with (S:=S)(S':=S').
+    simplify.
+    invert H.
+    invert H0.
+    invert H5.
+    eapply IHc.
+    eapply H6.
+    simplify.
+    eapply Forall2_cons.
+    eapply H4; assumption. assumption.
+    simplify.
+    invert H.
+    eapply cmd_binop_wt.
+    eapply H4.
+    eapply partial_eval_sound.
+    eapply H6.
+    assumption.
+  - intros; simplify.
+    invert H.
+    eapply IHc.
+    eapply H8.
+    eapply Forall2_swap.
+    assumption.
+  - intros; simplify.
+    cases (stack_pop s).
+    simplify.
+    invert H; invert H0.
+    rewrite flatmap_funext_typed with (g:= (fun x0 : stack_val =>
+                                      stack_peek (interp_cmd c1 [x0])))
+                                      (t1:=t1).
+    eapply IHc2.
+    apply H4.
+    eapply Forall2_cons.
+    eapply val_flatmap_sound; simplify.
+    eapply stack_peek_helper.
+    simplify.
+    eapply interp_sound.
+    eapply H6.
+    eapply Forall2_cons.
+    eapply H.
+    trivial.
+    invert Heq. eapply H3.
+    invert Heq. trivial.
+    simplify.
+    rewrite IHc1 with (S':= [ty_list t2]) (S:=[t1]).
+    trivial.
+    trivial.
+    eapply Forall2_cons.
+    trivial.
+    trivial.
+    simplify.
+    invert Heq.
+    trivial.
+  - intros; simplify.
+    invert H.
+    cases (stack_pop s).
+    cases (stack_pop l).
+    invert H0.
+    invert H5.
+    rewrite reduce_funext_typed with (g:= fun acc x1 : stack_val =>
+                                      stack_peek (interp_cmd c1 [x1; acc]))
+                                      (t1:= t)
+                                      (t2:= t_acc).
+    eapply IHc2.
+    apply H4.
+    eapply Forall2_cons.
+    eapply val_reduce_sound; simplify.
+    eapply stack_peek_helper.
+    simplify.
+    eapply interp_sound.
+    eapply H6.
+    eapply Forall2_cons.
+    eapply H.
+    eapply Forall2_cons.
+    trivial.
+    trivial.
+    invert Heq. eapply H3.
+    invert Heq. invert Heq0. trivial.
+    invert Heq. invert Heq0. trivial.
+
+    simplify.
+    pose (IHc1 ([t; t_acc]) ([t_acc])).
+    rewrite e.
+    trivial.
+    trivial.
+    eapply Forall2_cons.
+    trivial.
+    eapply Forall2_cons.
+    trivial.
+    trivial.
+
+    simplify.
+    eapply stack_peek_helper.
+    rewrite IHc1 with (S:=[t; t_acc]) (S':=[t_acc])(s:= [v; acc]).
+    eapply interp_sound.
+    eapply H6.
+    eapply Forall2_cons.
+    trivial.
+    eapply Forall2_cons.
+    trivial.
+    trivial.
+    trivial.
+    eapply Forall2_cons.
+    trivial.
+    eapply Forall2_cons.
+    trivial.
+    trivial.
+    invert Heq. invert Heq0. trivial.
+    invert Heq. invert Heq0. trivial.
+  - simplify; trivial.
+Qed.
+
 Lemma partial_eval_correct S c S'
   : cmd_well_typed S c S' ->
     forall s, stack_well_typed s S -> interp_cmd (partial_eval c) s = interp_cmd c s.
 Proof.
-Admitted.
+    eapply helper.
+Qed.
 
 
 (*
@@ -701,11 +1044,30 @@ Admitted.
   If you're having trouble with the function argument to val_flatmap,
   read HINT 4 in Pset6Sig.v.
  *)
+
+
+
 Lemma flatmap_fuse : forall cf1 cf2 c s,
     interp_cmd (cmd_flatmap cf1 (cmd_flatmap cf2 c)) s
     = interp_cmd (cmd_flatmap (cmd_seq cf1 (cmd_flatmap cf2 cmd_skip)) c) s.
 Proof.
-Admitted.
+  intros cf1 cf2 c s.
+  simplify.
+  cases (stack_pop s).
+
+  simplify.
+  rewrite flatmap_compose.
+  pose (val_flatmap_pointwise ((fun x : stack_val => val_flatmap (fun x0 : stack_val => stack_peek (interp_cmd cf2 [x0]))
+                              (stack_peek (interp_cmd cf1 [x])))) ((fun x : stack_val => stack_peek (interp_cmd (cmd_seq cf1 (cmd_flatmap cf2 cmd_skip)) [x]))) s0).
+  rewrite e.
+  trivial.
+  propositional.
+  rewrite interp_seq.
+  simplify.
+  cases ((interp_cmd cf1 [x])).
+  econstructor.
+  eauto.
+Qed.
 
 
 (*
@@ -720,8 +1082,22 @@ Admitted.
 
   If you're having trouble with the tests, read HINT 5 in Pset6Sig.v.
  *)
-Fixpoint loop_fuse (c : stack_cmd) : stack_cmd.
-Admitted.
+Fixpoint loop_fuse (c : stack_cmd) : stack_cmd :=
+  match c with
+    | cmd_atom v c' => cmd_atom v (loop_fuse c')
+    | cmd_unop f c' => cmd_unop f (loop_fuse c')
+    | cmd_binop f c' => cmd_binop f (loop_fuse c')
+    | cmd_swap n1 n2 c' => cmd_swap n1 n2 (loop_fuse c')
+    | cmd_flatmap cf1 c' =>
+      match loop_fuse c' with
+        | cmd_flatmap cf2 c'' =>
+          cmd_flatmap (cmd_seq (loop_fuse cf1) (cmd_flatmap cf2 cmd_skip)) c''
+        | c'_fused =>
+          cmd_flatmap (loop_fuse cf1) c'_fused
+      end
+    | cmd_reduce cf c' => cmd_reduce cf (loop_fuse c')
+    | cmd_skip => cmd_skip
+  end.
 
 (*
   Your loop_fuse optimizer should pass all of the following tests.
@@ -739,7 +1115,7 @@ Lemma loop_fuse_test1
                             (cmd_flatmap (cmd_lit 1 (cmd_add (cmd_singleton cmd_skip)))
                                cmd_skip))))
          cmd_skip).
-Proof. (* equality. *) Admitted.
+Proof. equality. Qed.
 
 Lemma loop_fuse_test2
   : loop_fuse (cmd_flatmap (cmd_flatmap (cmd_unop val_square (cmd_singleton cmd_skip))
@@ -754,7 +1130,7 @@ Lemma loop_fuse_test2
                      cmd_skip)))
             (cmd_singleton cmd_skip))
          cmd_skip.
-Proof. (* equality. *) Admitted.
+Proof. equality. Qed.
 
 
 Lemma loop_fuse_test3
@@ -774,7 +1150,7 @@ Lemma loop_fuse_test3
                              cmd_skip))))
                  cmd_skip)))
         cmd_skip.
-Proof. (* equality. *) Admitted.
+Proof. equality. Qed.
 
 
 (* As a first step, let's prove that this optimization preserves
@@ -785,7 +1161,45 @@ Lemma loop_fuse_sound S c S'
   : cmd_well_typed S c S' ->
     cmd_well_typed S (loop_fuse c) S'.
 Proof.
-Admitted.
+  simplify.
+  induct H.
+  - simplify. eapply cmd_atom_wt.
+    apply H. apply IHcmd_well_typed.
+  - simplify. eapply cmd_unop_wt.
+    apply H. apply IHcmd_well_typed.
+  - simplify. eapply cmd_binop_wt.
+    apply H. apply IHcmd_well_typed.
+  - simplify. eapply cmd_swap_wt.
+    apply H. apply H0. apply IHcmd_well_typed.
+  - simplify. destruct (loop_fuse c).
+    simplify. eapply cmd_flatmap_wt.
+    apply IHcmd_well_typed1. apply IHcmd_well_typed2.
+    simplify. eapply cmd_flatmap_wt.
+    apply IHcmd_well_typed1. apply IHcmd_well_typed2.
+    simplify. eapply cmd_flatmap_wt.
+    apply IHcmd_well_typed1. apply IHcmd_well_typed2.
+    simplify. eapply cmd_flatmap_wt.
+    apply IHcmd_well_typed1. apply IHcmd_well_typed2.
+
+    simplify. invert IHcmd_well_typed1.
+    pose (cmd_flatmap_wt S (cmd_seq (loop_fuse cf) (cmd_flatmap s1 cmd_skip)) t1 t3 s2 S').
+    eapply c0.
+    assumption.
+    pose (cmd_seq_wt [t1] [ty_list t2] [ty_list t3]).
+    eapply c1.
+    assumption.
+    eapply cmd_flatmap_wt with (t2:=t3).
+    econstructor.
+    assumption.
+    pose (cmd_flatmap_wt S (loop_fuse cf) t1 t2 (cmd_reduce s1 s2) S').
+    eapply c0. assumption.
+    apply IHcmd_well_typed2.
+    simplify. eapply cmd_flatmap_wt.
+    apply IHcmd_well_typed1. apply IHcmd_well_typed2.
+  - simplify. eapply cmd_reduce_wt.
+    eapply IHcmd_well_typed1. trivial.
+  - simplify. auto.
+Qed.
 
 
 (*
@@ -797,7 +1211,325 @@ Lemma loop_fuse_correct S c S'
   : cmd_well_typed S c S' ->
     forall s, stack_well_typed s S -> interp_cmd (loop_fuse c) s = interp_cmd c s.
 Proof.
-Admitted.
+  simplify.
+  induct H.
+  - simplify; rewrite IHcmd_well_typed.
+    constructor; auto.
+    constructor; auto.
+  - simplify; rewrite IHcmd_well_typed.
+    equality.
+    apply stack_unop_sound with (t1:=t1); auto.
+  - simplify; rewrite IHcmd_well_typed.
+    equality.
+    apply stack_binop_sound with (t1:=t1) (t2:=t2); auto.
+  - simplify; rewrite IHcmd_well_typed.
+    equality.
+    eapply Forall2_swap.
+    assumption.
+  - simplify. cases (loop_fuse c).
+    + simplify.
+      cases (stack_pop s).
+      rewrite IHcmd_well_typed1.
+      rewrite flatmap_funext_typed with (t1 := t1) (g := (fun x0 : stack_val => stack_peek (interp_cmd cf [x0]))).
+      simplify.
+      trivial.
+      simplify.
+      rewrite IHcmd_well_typed2.
+      trivial.
+      eapply Forall2_cons.
+      trivial.
+      trivial.
+      invert H1.
+      invert Heq0.
+      trivial.
+
+      eapply Forall2_cons; simplify.
+      eapply val_flatmap_sound; simplify.
+      eapply stack_peek_helper; simplify.
+      eapply interp_sound; simplify.
+      eapply loop_fuse_sound; simplify.
+      trivial.
+      eapply H0.
+      eapply Forall2_cons.
+      eapply H2.
+      trivial.
+      invert H1.
+      invert Heq0.
+      trivial.
+      invert H1.
+      invert Heq0.
+      trivial.
+    + replace (cmd_unop f s0) with (loop_fuse c) in IHcmd_well_typed1.
+      replace (cmd_unop f s0) with (loop_fuse c).
+      cases (stack_pop s).
+      simplify.
+      cases (stack_pop s).
+      rewrite IHcmd_well_typed1.
+      rewrite flatmap_funext_typed with (t1 := t1) (g := (fun x0 : stack_val => stack_peek (interp_cmd cf [x0]))).
+      simplify.
+      trivial.
+      simplify.
+      invert Heq0.
+      trivial.
+      simplify.
+      simplify.
+      rewrite IHcmd_well_typed2.
+      trivial.
+      eapply Forall2_cons.
+      trivial.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+
+      eapply Forall2_cons; simplify.
+      eapply val_flatmap_sound; simplify.
+      eapply stack_peek_helper; simplify.
+      eapply interp_sound; simplify.
+      eapply loop_fuse_sound; simplify.
+      trivial.
+      eapply H0.
+      eapply Forall2_cons.
+      eapply H2.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+    + replace (cmd_binop f s0) with (loop_fuse c) in IHcmd_well_typed1.
+      replace (cmd_binop f s0) with (loop_fuse c).
+      cases (stack_pop s).
+      simplify.
+      cases (stack_pop s).
+      rewrite IHcmd_well_typed1.
+      rewrite flatmap_funext_typed with (t1 := t1) (g := (fun x0 : stack_val => stack_peek (interp_cmd cf [x0]))).
+      simplify.
+      trivial.
+      simplify.
+      invert Heq0.
+      trivial.
+      simplify.
+      simplify.
+      rewrite IHcmd_well_typed2.
+      trivial.
+      eapply Forall2_cons.
+      trivial.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+
+      eapply Forall2_cons; simplify.
+      eapply val_flatmap_sound; simplify.
+      eapply stack_peek_helper; simplify.
+      eapply interp_sound; simplify.
+      eapply loop_fuse_sound; simplify.
+      trivial.
+      eapply H0.
+      eapply Forall2_cons.
+      eapply H2.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+    + replace (cmd_swap n1 n2 s0) with (loop_fuse c) in IHcmd_well_typed1.
+      replace (cmd_swap n1 n2 s0) with (loop_fuse c).
+      cases (stack_pop s).
+      simplify.
+      cases (stack_pop s).
+      rewrite IHcmd_well_typed1.
+      rewrite flatmap_funext_typed with (t1 := t1) (g := (fun x0 : stack_val => stack_peek (interp_cmd cf [x0]))).
+      simplify.
+      trivial.
+      simplify.
+      invert Heq0.
+      trivial.
+      simplify.
+      simplify.
+      rewrite IHcmd_well_typed2.
+      trivial.
+      eapply Forall2_cons.
+      trivial.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+
+      eapply Forall2_cons; simplify.
+      eapply val_flatmap_sound; simplify.
+      eapply stack_peek_helper; simplify.
+      eapply interp_sound; simplify.
+      eapply loop_fuse_sound; simplify.
+      trivial.
+      eapply H0.
+      eapply Forall2_cons.
+      eapply H2.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+    + replace (interp_cmd (cmd_flatmap (cmd_seq (loop_fuse cf) (cmd_flatmap s0_1 cmd_skip)) s0_2) s)
+              with (interp_cmd (cmd_flatmap (loop_fuse cf) (cmd_flatmap s0_1 s0_2)) s) by (apply flatmap_fuse).
+      replace (cmd_flatmap s0_1 s0_2) with (loop_fuse c) in IHcmd_well_typed1.
+      replace (cmd_flatmap s0_1 s0_2) with (loop_fuse c).
+
+      cases (stack_pop s).
+      simplify.
+      cases (stack_pop s).
+      rewrite IHcmd_well_typed1.
+      rewrite flatmap_funext_typed with (t1 := t1) (g := (fun x0 : stack_val => stack_peek (interp_cmd cf [x0]))).
+      simplify.
+      trivial.
+      simplify.
+      invert Heq0.
+      trivial.
+      simplify.
+      simplify.
+      rewrite IHcmd_well_typed2.
+      trivial.
+      eapply Forall2_cons.
+      trivial.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+
+      eapply Forall2_cons; simplify.
+      eapply val_flatmap_sound; simplify.
+      eapply stack_peek_helper; simplify.
+      eapply interp_sound; simplify.
+      eapply loop_fuse_sound; simplify.
+      trivial.
+      eapply H0.
+      eapply Forall2_cons.
+      eapply H2.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+    + replace (cmd_reduce s0_1 s0_2) with (loop_fuse c) in IHcmd_well_typed1.
+      replace (cmd_reduce s0_1 s0_2) with (loop_fuse c).
+
+      cases (stack_pop s).
+      simplify.
+      cases (stack_pop s).
+      rewrite IHcmd_well_typed1.
+      rewrite flatmap_funext_typed with (t1 := t1) (g := (fun x0 : stack_val => stack_peek (interp_cmd cf [x0]))).
+      simplify.
+      trivial.
+      simplify.
+      invert Heq0.
+      trivial.
+      simplify.
+      simplify.
+      rewrite IHcmd_well_typed2.
+      trivial.
+      eapply Forall2_cons.
+      trivial.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+
+      eapply Forall2_cons; simplify.
+      eapply val_flatmap_sound; simplify.
+      eapply stack_peek_helper; simplify.
+      eapply interp_sound; simplify.
+      eapply loop_fuse_sound; simplify.
+      trivial.
+      eapply H0.
+      eapply Forall2_cons.
+      eapply H2.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+    + replace (cmd_skip) with (loop_fuse c) in IHcmd_well_typed1.
+      replace (cmd_skip) with (loop_fuse c).
+
+      cases (stack_pop s).
+      simplify.
+      cases (stack_pop s).
+      rewrite IHcmd_well_typed1.
+      rewrite flatmap_funext_typed with (t1 := t1) (g := (fun x0 : stack_val => stack_peek (interp_cmd cf [x0]))).
+      simplify.
+      trivial.
+      simplify.
+      invert Heq0.
+      trivial.
+      simplify.
+      simplify.
+      rewrite IHcmd_well_typed2.
+      trivial.
+      eapply Forall2_cons.
+      trivial.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+
+      eapply Forall2_cons; simplify.
+      eapply val_flatmap_sound; simplify.
+      eapply stack_peek_helper; simplify.
+      eapply interp_sound; simplify.
+      eapply loop_fuse_sound; simplify.
+      trivial.
+      eapply H0.
+      eapply Forall2_cons.
+      eapply H2.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+      invert H1.
+      invert Heq0. invert Heq1.
+      trivial.
+  - simplify.
+    cases (stack_pop s).
+    cases (stack_pop l).
+    invert H1.
+    simplify.
+    invert H6.
+    simplify.
+    rewrite IHcmd_well_typed1.
+    trivial.
+    eapply Forall2_cons; simplify.
+    eapply val_reduce_sound; simplify.
+    simplify.
+    eapply stack_peek_helper; simplify.
+    eapply interp_sound; simplify.
+    apply H0.
+    eapply Forall2_cons; simplify.
+    eapply H1.
+    eapply Forall2_cons; simplify.
+    eapply H2.
+    trivial.
+
+    invert Heq.
+    trivial.
+
+    invert Heq. invert Heq0.
+    trivial.
+    invert Heq. invert Heq0.
+    trivial.
+
+  - equality.
+
+Qed.
 
 
 

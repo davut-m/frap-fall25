@@ -383,7 +383,7 @@ Parameter interp_seq
   : forall c1 c2 s, interp_cmd (cmd_seq c1 c2) s
                     = interp_cmd c2 (interp_cmd c1 s).
 
-(*[8%]*)
+(*[8%] DONE*)
 Parameter flatmap_fuse : forall cf1 cf2 c s,
     interp_cmd (cmd_flatmap cf1 (cmd_flatmap cf2 c)) s
     = interp_cmd (cmd_flatmap (cmd_seq cf1 (cmd_flatmap cf2 cmd_skip)) c) s.
@@ -394,13 +394,13 @@ Parameter partial_eval_sound
   : forall S c S', cmd_well_typed S c S' ->
     cmd_well_typed S (partial_eval c) S'.
 
-(*[30%]*)
+(*[30%] DONE*)
 Parameter partial_eval_correct
   : forall S c S', cmd_well_typed S c S' ->
     forall s, stack_well_typed s S -> interp_cmd (partial_eval c) s = interp_cmd c s.
 
 
-(*[6%]*)
+(*[6%] DONE*)
 Parameter loop_fuse : stack_cmd -> stack_cmd.
 
 (* Some common comands for use in our test cases *)
@@ -421,7 +421,7 @@ Definition cmd_lit n := cmd_atom (val_lit n).
 Definition cmd_cons := cmd_binop val_cons.
 Definition cmd_add := cmd_binop val_add.
 
-(*[1%]*)
+(*[1%] DONE*)
 Parameter loop_fuse_test1
   : loop_fuse (cmd_flatmap (cmd_singleton (cmd_lit 0 (cmd_cons cmd_skip)))
                  (cmd_flatmap (cmd_lit 1 (cmd_add (cmd_singleton cmd_skip))) cmd_skip))
@@ -432,7 +432,7 @@ Parameter loop_fuse_test1
                                cmd_skip))))
          cmd_skip).
 
-(*[1%]*)
+(*[1%] DONE*)
 Parameter loop_fuse_test2
   : loop_fuse (cmd_flatmap (cmd_flatmap (cmd_unop val_square (cmd_singleton cmd_skip))
                               (cmd_flatmap (cmd_unop val_square (cmd_singleton cmd_skip))
@@ -448,7 +448,7 @@ Parameter loop_fuse_test2
          cmd_skip.
 
 
-(*[1%]*)
+(*[1%] DONE*)
 Parameter loop_fuse_test3
   : loop_fuse (cmd_flatmap (cmd_unop val_square (cmd_singleton cmd_skip))
                  (cmd_flatmap (cmd_singleton (cmd_lit 0 (cmd_cons cmd_skip)))
@@ -467,7 +467,7 @@ Parameter loop_fuse_test3
                  cmd_skip)))
         cmd_skip.
 
-(*[8%]*)
+(*[8%] DONE*)
 Parameter loop_fuse_sound
   : forall S c S', cmd_well_typed S c S' ->
     cmd_well_typed S (loop_fuse c) S'.
@@ -579,39 +579,6 @@ on `partial_eval c`.
 
 
 |*)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
