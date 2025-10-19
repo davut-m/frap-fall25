@@ -148,7 +148,7 @@ Module Type S.
   (*[5%] DONE*)
   Axiom subtype_refl : forall t, t $<: t.
 
-  (*[25%]*)
+  (*[25%] DONE*)
   Axiom subtype_trans : forall t1 t2 t3, t1 $<: t2 -> t2 $<: t3 -> t1 $<: t3.
 
   (*[70%]*)

@@ -303,6 +303,8 @@ Proof.
 Qed.
 
 (* BEGIN handy tactic that we suggest for these proofs *)
+Local Hint Constructors value plug step0 step has_ty : core.
+
 Ltac tac0 :=
   match goal with
   | [ H : ex _ |- _ ] => invert H
@@ -319,7 +321,7 @@ Ltac tac0 :=
   end;
   subst.
 
-Ltac tac := simplify; subst; propositional; repeat (tac0; simplify); try equality.
+Ltac tac := simplify; subst; propositional; repeat (tac0; simplify); try equality; eauto 6.
 (* END handy tactic *)
 
 
@@ -337,13 +339,285 @@ Ltac tac := simplify; subst; propositional; repeat (tac0; simplify); try equalit
  * material. *)
 
 (* HINT 2-3 (see Pset7Sig.v) *)
+
+Lemma fun_canonical : forall e t1 t2,
+    has_ty $0 e (Fun t1 t2) ->
+    value e ->
+    exists x e', e = Abs x e'.
+Proof.
+  induct 1; tac.
+  - invert H1.
+  - invert H1.
+Qed.
+
+Lemma tuple_canonical : forall e t1 t2,
+    has_ty $0 e (TupleTypeCons t1 t2) ->
+    value e ->
+    exists e1 e2, e = TupleCons e1 e2 /\ value e1 /\ value e2.
+Proof.
+  induct 1; tac.
+  - invert H1.
+  - exists e1, e2.
+    propositional.
+    + invert H1.
+      assumption.
+    + invert H1.
+      assumption.
+  - invert H1.
+Qed.
+
+Lemma progress : forall e t,
+    has_ty $0 e t
+    -> value e
+    \/ (exists e' : exp, step e e').
+Proof.
+    induct 1; tac.
+    - right.
+      pose proof (fun_canonical H H3) as Hcanon.
+      invert Hcanon.
+      invert H2.
+      exists (subst e2 x x0).
+      eapply StepRule with (C := Hole).
+      + constructor.
+      + constructor.
+      + constructor.
+      assumption.
+    - right.
+      invert H0.
+      + pose proof (tuple_canonical H H1) as Hcanon.
+        invert Hcanon.
+        propositional.
+        exists (x).
+        eapply StepRule with (C := Hole).
+        ++ constructor.
+        ++ constructor.
+        ++ cases H0. propositional.
+           invert H2.
+           constructor; eauto.
+      + pose proof (tuple_canonical H H1) as Hcanon.
+        invert Hcanon.
+        propositional.
+        cases H0. propositional.
+        exists (Proj x0 n0).
+        eapply StepRule with (C := Hole).
+        ++ constructor.
+        ++ constructor.
+        ++ invert H3.
+           constructor; eauto.
+Qed.
+
+Lemma weakening_override : forall (G G' : fmap var type) x t,
+    (forall x' t', G $? x' = Some t' -> G' $? x' = Some t')
+    -> (forall x' t', G $+ (x, t) $? x' = Some t'
+                      -> G' $+ (x, t) $? x' = Some t').
+Proof.
+    simplify.
+    cases (x ==v x'); simplify; eauto.
+Qed.
+
+Local Hint Resolve weakening_override : core.
+
+Lemma weakening : forall G e t,
+    has_ty G e t
+    -> forall G', (forall x t, G $? x = Some t -> G' $? x = Some t)
+        -> has_ty G' e t.
+Proof.
+    induct 1; tac.
+Qed.
+
+Local Hint Resolve weakening : core.
+
+Lemma has_ty_Abs : forall G x e t,
+  has_ty G (Abs x e) t ->
+  exists t1 t2, has_ty (G $+ (x, t1)) e t2 /\ Fun t1 t2 $<: t.
+Proof.
+  induct 1.
+  - exists t1, t2.
+    propositional.
+    apply subtype_refl.
+  - propositional.
+    cases IHhas_ty. cases H1.
+    propositional.
+    exists x0, x1.
+    propositional.
+    eapply subtype_trans; eauto.
+Qed.
+
+Lemma has_ty_TupleCons : forall G e e' t,
+  has_ty G (TupleCons e e') t ->
+  exists t1 t2, has_ty G e t1 /\ has_ty G e' t2 /\ TupleTypeCons t1 t2 $<: t.
+Proof.
+  induct 1.
+  - exists t1, t2.
+    propositional.
+    apply subtype_refl.
+  - propositional.
+    cases IHhas_ty; cases H1.
+    exists x, x0.
+    propositional.
+    eapply subtype_trans; eauto.
+Qed.
+
+Lemma has_ty_App : forall G e1 e2 t,
+  has_ty G (App e1 e2) t ->
+  exists t1, has_ty G e1 (Fun t1 t) /\ has_ty G e2 t1.
+Proof.
+  induct 1.
+  - exists t1. split; assumption.
+  - propositional.
+    cases IHhas_ty.
+    exists x.
+    propositional.
+    eapply HtSub; eauto.
+    assert (x $<: x) by (apply subtype_refl).
+    pose proof (StFun H1 H0).
+    assumption.
+Qed.
+
+Lemma has_ty_Proj : forall G e n t,
+ has_ty G (Proj e n) t ->
+ exists t' t0, has_ty G e t' /\ proj_t t' n t0 /\ t0 $<: t.
+Proof.
+ induct 1; intros.
+ - exists t', t.
+   propositional.
+   apply subtype_refl.
+ - propositional.
+   cases IHhas_ty.
+   cases H1.
+   propositional.
+   exists x, x0.
+   propositional.
+   eapply subtype_trans; eauto.
+Qed.
+
+Lemma has_ty_change : forall G e t,
+    has_ty G e t
+    -> forall G', G' = G
+      -> has_ty G' e t.
+Proof.
+    tac.
+Qed.
+
+Local Hint Resolve has_ty_change : core.
+
+Lemma substitution : forall G x t' e t e',
+    has_ty (G $+ (x, t')) e t
+    -> has_ty $0 e' t'
+    -> has_ty G (subst e' x e) t.
+Proof.
+    induct 1; tac.
+Qed.
+
+Local Hint Resolve substitution : core.
+
+Lemma preservation0 : forall e1 e2,
+    step0 e1 e2
+    -> forall t, has_ty $0 e1 t
+      -> has_ty $0 e2 t.
+Proof.
+    invert 1; tac.
+    - pose proof (has_ty_App H) as Hinv.
+      invert Hinv.
+      invert H1.
+      propositional.
+      pose proof (has_ty_Abs H2) as Habs.
+      invert Habs.
+      invert H1.
+      propositional.
+      tac.
+    - pose proof (has_ty_Proj H) as Hinv.
+      invert Hinv.
+      invert H2. propositional.
+      pose proof (has_ty_TupleCons H2) as Htup.
+      invert Htup.
+      invert H4.
+      propositional.
+      tac.
+    - pose proof (has_ty_Proj H) as Hinv.
+      invert Hinv.
+      invert H2.
+      propositional.
+      pose proof (has_ty_TupleCons H2) as Htup.
+      invert Htup.
+      invert H4.
+      propositional.
+      tac.
+Qed.
+
+Local Hint Resolve preservation0 : core.
+
+Lemma preservation' : forall C e1 e1',
+      plug C e1 e1'
+      -> forall e2 e2' t, plug C e2 e2'
+      -> step0 e1 e2
+      -> has_ty $0 e1' t
+      -> has_ty $0 e2' t.
+Proof.
+    induct 1; tac.
+    - pose proof (has_ty_App H2).
+      invert H0.
+      propositional.
+      eapply HtApp.
+      + eapply IHplug; eauto.
+      + assumption.
+    - pose proof (has_ty_App H3).
+      invert H1.
+      propositional.
+      eapply HtApp.
+      + eauto.
+      + eapply IHplug; eauto.
+    - pose proof (has_ty_TupleCons H2).
+      invert H0.
+      invert H3.
+      propositional.
+      eapply HtSub.
+      + eapply HtTupleCons.
+        ++ eapply IHplug; eauto.
+        ++ eauto.
+      + eauto.
+    - pose proof (has_ty_TupleCons H3).
+      invert H1.
+      invert H4.
+      propositional.
+      eapply HtSub.
+      + eapply HtTupleCons.
+        ++ eauto.
+        ++ eapply IHplug; eauto.
+      + eauto.
+    - pose proof (has_ty_Proj H2).
+      invert H0.
+      invert H3.
+      propositional.
+      eapply HtSub.
+      + eapply HtProj.
+        ++ eapply IHplug; eauto.
+        ++ eauto.
+      + eauto.
+Qed.
+
+Local Hint Resolve preservation' : core.
+
+Lemma preservation : forall e1 e2,
+  step e1 e2
+  -> forall t, has_ty $0 e1 t
+    -> has_ty $0 e2 t.
+Proof.
+  invert 1; tac.
+Qed.
+
+Local Hint Resolve progress preservation : core.
+
 Theorem safety :
   forall e t,
     has_ty $0 e t -> invariantFor (trsys_of e)
                                   (fun e' => value e'
                                              \/ exists e'', step e' e'').
 Proof.
-Admitted.
+  simplify.
+  apply invariant_weaken with (invariant1 := fun e' => has_ty $0 e' t); eauto.
+  apply invariant_induction; simplify; eauto; equality.
+Qed.
 
 End Impl.
 
