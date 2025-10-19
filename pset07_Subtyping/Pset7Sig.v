@@ -145,7 +145,7 @@ Module Type S.
 
   (* --- THEOREMS TO PROVE (in Pset7.v) --- *)
 
-  (*[5%]*)
+  (*[5%] DONE*)
   Axiom subtype_refl : forall t, t $<: t.
 
   (*[25%]*)
@@ -167,7 +167,7 @@ TIPS: A few things that might be helpful keep in mind as you work on Pset 7
 Use LambdaCalculusAndTypeSoundness.v
 ====================================
 
-Make sure you read and understand `LambdaCalculusAndTypeSoundness.v` from 
+Make sure you read and understand `LambdaCalculusAndTypeSoundness.v` from
 FRAP, since a lot of the proof structure from that file can be reused in this Pset!
 We certainly aren't expecting you to reconstruct the whole theory of type soundness
 from scratch. Then, the follow-on file `EvaluationContexts.v` is an even
@@ -185,13 +185,13 @@ By using a command of the form:
 Local Hint Constructors <inductive predicate> : core.
 ```
 
-the constructors of the <inductive predicate> are now included in the 
+the constructors of the <inductive predicate> are now included in the
 proof search that `auto` and `eauto` performs.
 *)
 
 
 (*|
-HINTS: A few hints to help you if you get stuck on certain 
+HINTS: A few hints to help you if you get stuck on certain
        problems in Pset 7.
        Beware! Don't read further if you don't want spoilers!
 =============================================================

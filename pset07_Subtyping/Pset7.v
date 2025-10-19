@@ -207,11 +207,11 @@ Inductive has_ty : fmap var type -> exp -> type -> Prop :=
  * but we are assigning it in hopes it helps you complete the
  * following parts.
 
- What does it mean for the subtyping order of the arguments in `StFun` to be 
+ What does it mean for the subtyping order of the arguments in `StFun` to be
  reversed?
 
 
- If t1 $<: t2, what is known about some t3 that is a supertype of t2? And 
+ If t1 $<: t2, what is known about some t3 that is a supertype of t2? And
  likewise if it's a subtype of t1?
 
 
@@ -219,13 +219,13 @@ Inductive has_ty : fmap var type -> exp -> type -> Prop :=
  ```
  has_ty G (Abs x e1) t
  ```
- with the `LambdaCalculusAndTypeSoundness` definition of `has_ty`, and what 
+ with the `LambdaCalculusAndTypeSoundness` definition of `has_ty`, and what
  information do you have about `t`?
 
  To contrast, how many goals do you expect with the `has_ty` definition of
- this pset? Why is this the case? 
+ this pset? Why is this the case?
 
- Can you formulate a lemma that consolidates the information present in these 
+ Can you formulate a lemma that consolidates the information present in these
  branches into one conclusion? (Imagine inverting now is equivalent to an
  "or" generating branches for each constructor; can you rephrase a lemma that
  leads to a conclusion with an "and" instead?)
@@ -235,11 +235,11 @@ Inductive has_ty : fmap var type -> exp -> type -> Prop :=
  ```
  has_ty G e (Fun t1 t2)
  ```
- with the `LambdaCalculusAndTypeSoundness` definition of `has_ty`, and what 
- information do you have about `e`? 
+ with the `LambdaCalculusAndTypeSoundness` definition of `has_ty`, and what
+ information do you have about `e`?
 
- To contrast, how many goals do you expect with the `has_ty` definition 
- of this pset? Why is this the case? 
+ To contrast, how many goals do you expect with the `has_ty` definition
+ of this pset? Why is this the case?
 
  Can you formulate a lemma to recover information similar to what inverting
  gave you in FRAP's `has_ty` definition?
@@ -250,12 +250,57 @@ Inductive has_ty : fmap var type -> exp -> type -> Prop :=
 
 Lemma subtype_refl : forall t1, t1 $<: t1.
 Proof.
-Admitted.
+    induct t1.
+    - eapply StFun; eauto.
+    - eapply StTupleNilNil; eauto.
+    - eapply StTupleCons; eauto.
+Qed.
 
-(* HINT 1 (see Pset7Sig.v) *) 
+
+(* HINT 1 (see Pset7Sig.v) *)
+Definition P(t1 t2: type): Prop :=
+    (forall t0, t0 $<: t1 -> t0 $<: t2) /\
+    (forall t3, t2 $<: t3 -> t1 $<: t3).
+
+Lemma subtype_trans_aux : forall t1 t2, t1 $<: t2 -> P t1 t2.
+Proof.
+    induct 1; unfold P in *.
+    - simplify. propositional.
+      + invert H5.
+        apply StFun.
+        ++ eapply H2. assumption.
+        ++ eapply H3. assumption.
+      + invert H5.
+        apply StFun.
+        ++ eapply H1. assumption.
+        ++ eapply H4. assumption.
+    - simplify. propositional.
+    - simplify. propositional.
+      ++ invert H.
+        eapply StTupleNilCons.
+      ++ invert H.
+        eapply StTupleNilCons.
+    - simplify. propositional.
+      ++ invert H5.
+        apply StTupleCons.
+        +++ eapply H1. assumption.
+        +++ eapply H3. assumption.
+      ++ invert H5.
+        +++ apply StTupleNilCons.
+        +++ apply StTupleCons.
+            -- eapply H2. assumption.
+            -- eapply H4. assumption.
+Qed.
+
+
 Lemma subtype_trans : forall t1 t2 t3, t1 $<: t2 -> t2 $<: t3 -> t1 $<: t3.
 Proof.
-Admitted.
+    simplify.
+    pose proof (subtype_trans_aux H).
+    unfold P in *; simplify; propositional.
+    eapply H3.
+    assumption.
+Qed.
 
 (* BEGIN handy tactic that we suggest for these proofs *)
 Ltac tac0 :=
@@ -291,7 +336,7 @@ Ltac tac := simplify; subst; propositional; repeat (tac0; simplify); try equalit
  * they could be solved from scratch with a good understanding of the lecture
  * material. *)
 
-(* HINT 2-3 (see Pset7Sig.v) *) 
+(* HINT 2-3 (see Pset7Sig.v) *)
 Theorem safety :
   forall e t,
     has_ty $0 e t -> invariantFor (trsys_of e)
