@@ -231,39 +231,6 @@ You will need to generalize the noninterference theorem statement to prove it by
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 (*|
 HINT 2: `invert`ing `Confidential` hypotheses
 =============================================

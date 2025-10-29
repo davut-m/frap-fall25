@@ -153,7 +153,7 @@ This is predeclared and fixed. But there is also a distinct `set var` argument.
 This is because we need to consider *implicit* as well as *explicit* flows.
 
 - An explicit flow happens when assigning to a variable.
-  If `e` mentions variable `x`, then `y := e` may cause data to flow from `x` into `y`. 
+  If `e` mentions variable `x`, then `y := e` may cause data to flow from `x` into `y`.
   If `x` is private and `y` is public, we want to rule that out.
 
 - An implicit flow happens when assigning to a variable *under a conditional*.
@@ -257,33 +257,33 @@ Definition same_public_state pub (v1 v2: valuation) :=
    the multiple-choice one, but we are assigning the rest in hopes that they
    help you complete the following parts.
 
- Suppose an expression contains only public variables. Under what valuations 
+ Suppose an expression contains only public variables. Under what valuations
  do we expect them to evaluate to the same value?
 
 
 
  Suppose an expression evaluates to different values under different
  valuations. What do we know about this expression if the different valuations
- share the same public state? Do we know anything if the valuations do not 
+ share the same public state? Do we know anything if the valuations do not
  share the same public state?
 
 
 
- The noninterference property says that running a program in states with 
- private variables holding potentially different values does not change the 
+ The noninterference property says that running a program in states with
+ private variables holding potentially different values does not change the
  public outputs of the program.
 
- The key difficulty is to deal with *divergence* — the cases where the two 
+ The key difficulty is to deal with *divergence* — the cases where the two
  program executions take different paths.
 
  When does this happen?  How does that translate in terms of the variables
  in `cv`?
-  
+
  Can a divergent execution affect the values of public variables?
 
 
 
- When a Confidential program executes, in what ways can it modify the 
+ When a Confidential program executes, in what ways can it modify the
  valuation? How does this depend on the values of `cv`?
 
 
@@ -293,11 +293,245 @@ Definition same_public_state pub (v1 v2: valuation) :=
 
  *)
 
-Definition private_can_determine_termination : bool.
-Admitted.
+Definition private_can_determine_termination := true.
+
+Lemma restrict_add_not_in :
+  forall (s : set var) (v : valuation) (x : var) (n : nat),
+    ~ x \in s ->
+    restrict s (v $+ (x, n)) = restrict s v.
+Proof.
+  intros.
+  apply fmap_ext.
+  intros y.
+  excluded_middle (y \in s).
+  - rewrite lookup_restrict_true by assumption.
+    rewrite lookup_restrict_true by assumption.
+    rewrite lookup_add_ne.
+    + reflexivity.
+    + intro Heq.
+      subst.
+      sets.
+  - rewrite lookup_restrict_false by (sets; assumption).
+    rewrite lookup_restrict_false by (sets; assumption).
+    trivial.
+Qed.
 
 
-(* HINT 1-2 (see Pset8Sig.v) *) 
+Lemma restrict_add_in :
+  forall (s : set var) (v : valuation) (x : var) (n : nat),
+    x \in s ->
+    restrict s (v $+ (x, n)) = (restrict s v) $+ (x, n).
+Proof.
+  intros.
+  apply fmap_ext.
+  intros y.
+  excluded_middle (y \in s).
+  - rewrite lookup_restrict_true by assumption.
+    cases (y ==v x).
+    + rewrite !lookup_add_eq; eauto.
+    + rewrite lookup_add_ne by assumption.
+      rewrite lookup_add_ne by assumption.
+      rewrite lookup_restrict_true by assumption.
+      reflexivity.
+  - rewrite lookup_restrict_false by (sets; assumption).
+    simplify.
+    rewrite lookup_restrict_false by (sets; assumption).
+    trivial.
+Qed.
+
+Lemma interp_eq_when_vars_in :
+  forall (S : set var) (e : arith) (v1 v2 : valuation),
+    vars e \subseteq S ->
+    restrict S v1 = restrict S v2 ->
+    interp e v1 = interp e v2.
+Proof.
+  intros S e.
+  induct e; simplify; intros.
+  - trivial.
+  - simplify.
+    assert (x \in S) by (simplify; sets).
+    specialize (f_equal (fun m => m $? x) H0).
+    simplify.
+    assert (v1 $? x = v2 $? x) as Heq.
+    {
+      rewrite lookup_restrict_true in H2 by assumption.
+      rewrite lookup_restrict_true in H2 by assumption.
+      assumption.
+    }
+    rewrite Heq.
+    trivial.
+  - assert (vars e1 \subseteq S) by (simplify; sets).
+    assert (vars e2 \subseteq S) by (simplify; sets).
+    pose proof (IHe1 v1 v2 H1 H0).
+    pose proof (IHe2 v1 v2 H2 H0).
+    rewrite H3.
+    rewrite H4.
+    trivial.
+Qed.
+
+Lemma confidential_mono_dumb:
+  forall cmd pub cv1,
+    Confidential pub cv1 cmd ->
+  forall cv2,
+    cv2 \subseteq cv1 ->
+    Confidential pub cv2 cmd.
+Proof.
+  simplify; induct H; eauto.
+  - eapply ConfidentialSkip; eauto; sets.
+  - eapply ConfidentialAssignPrivate; eauto; sets.
+  - eapply ConfidentialAssignPublic; eauto; sets.
+  - eapply ConfidentialSeq; eauto; sets.
+  - eapply ConfidentialIf; eauto; sets.
+    eapply IHConfidential1; eauto; sets.
+    eapply IHConfidential2; eauto; sets.
+  - eapply ConfidentialWhile; eauto; sets.
+    eapply IHConfidential; eauto; sets.
+Qed.
+
+
+Lemma restrict_unaffected :
+  forall (v v' : valuation) (c : cmd) (pub cv : set var),
+    eval v c v' ->
+    Confidential pub cv c ->
+    ~ cv \subseteq pub ->
+    restrict pub v' = restrict pub v.
+Proof.
+  simplify; induct H; eauto.
+
+  invert H0; eauto.
+  rewrite restrict_add_not_in; eauto.
+  invert H1.
+  eapply IHeval1 in H6; eauto.
+  eapply IHeval2 in H7; eauto.
+  invert H6; invert H7; eauto.
+
+  invert H1; eauto.
+  eapply confidential_mono_dumb in H6; eauto; sets.
+  invert H1; eauto.
+  eapply confidential_mono_dumb in H8; eauto; sets.
+  pose H2 as H4.
+  eapply IHeval2 in H4; eauto.
+  invert H2.
+  eapply confidential_mono_dumb with (cv2:= cv) in H7; eauto; sets.
+Qed.
+
+Lemma restrict_while_unaffected :
+  forall (e : arith) (c : cmd) (v v' : valuation) (pub : set var),
+    eval v (while e loop c done) v' ->
+    ~ vars e \subseteq pub ->
+    Confidential pub (vars e) c ->
+    restrict pub v' = restrict pub v.
+Proof.
+  simplify; induct H; eauto.
+  rewrite IHeval2 with (e:=e)(c:=c); eauto.
+  eapply restrict_unaffected; eauto.
+Qed.
+
+
+Lemma eval_preserves_public_equiv :
+  forall pub c v1 v1',
+    eval v1 c v1' ->
+  forall v2 v2',
+    eval v2 c v2' ->
+    Confidential pub {} c ->
+    restrict pub v1 = restrict pub v2 ->
+    restrict pub v1' = restrict pub v2'.
+Proof.
+  induct 1; intros.
+  - invert H0; invert H.
+    eassumption.
+  - invert H0; invert H; simplify.
+    rewrite restrict_add_not_in; auto.
+    rewrite restrict_add_not_in; eauto.
+
+    excluded_middle (pub x).
+    --rewrite restrict_add_in; eauto.
+      rewrite restrict_add_in; eauto.
+      assert (interp e v = interp e v2).
+      { eapply interp_eq_when_vars_in; eauto. }
+
+      invert H0; invert H1; eauto.
+
+    --rewrite restrict_add_not_in; eauto.
+      rewrite restrict_add_not_in; eauto.
+
+
+  - invert H1; invert H2; simplify.
+    eapply IHeval2 in H9; eauto.
+
+  - invert H1; invert H2; simplify.
+    eapply IHeval with (v2 := v2); auto.
+    eapply confidential_mono_dumb; eauto; sets.
+
+    assert (~ vars e \subseteq pub) as Hsub.
+    {intro. assert (interp e v = interp e v2). simplify.
+    eapply interp_eq_when_vars_in; eauto. sets. }
+
+    pose (restrict_unaffected v v' thn pub ({ } \cup vars e)); eauto.
+    simplify.
+    pose (restrict_unaffected v2 v2' els pub ({ } \cup vars e)); eauto.
+    simplify.
+
+    rewrite e1, e0; eauto.
+    sets.
+    sets.
+
+  - invert H1; invert H2; simplify.
+    pose (restrict_unaffected v v' els pub ({ } \cup vars e)); eauto.
+    simplify.
+    pose (restrict_unaffected v2 v2' thn pub ({ } \cup vars e)); eauto.
+    simplify.
+    rewrite e1, e0; eauto.
+
+    assert (~ vars e \subseteq pub) as Hsub.
+    {intro. assert (interp e v = interp e v2). simplify.
+    eapply interp_eq_when_vars_in; eauto. sets. } sets.
+
+    assert (~ vars e \subseteq pub) as Hsub.
+    {intro. assert (interp e v = interp e v2). simplify.
+    eapply interp_eq_when_vars_in; eauto. sets. } sets.
+
+    eapply IHeval; eauto.
+    eapply confidential_mono_dumb; eauto.
+    sets.
+  - invert H2; invert H3; simplify.
+    eapply IHeval2; eauto.
+    eapply ConfidentialWhile; eauto.
+    invert H11; eauto.
+    eapply IHeval1; eauto.
+    eapply confidential_mono_dumb; eauto.
+    sets.
+    eapply confidential_mono_dumb in H6; eauto; sets.
+
+    assert (~ vars e \subseteq pub) as Hsub.
+    {intro. assert (interp e v = interp e v2'). simplify.
+    eapply interp_eq_when_vars_in; eauto. sets. }
+
+    pose (restrict_while_unaffected e body v' v'' pub H1 ); eauto.
+    simplify.
+    pose (restrict_unaffected v v' body pub ({ } \cup vars e)); eauto.
+    simplify.
+    rewrite e0. rewrite e1; eauto.
+    sets.
+    sets.
+    eapply confidential_mono_dumb; eauto.
+    sets.
+  - invert H0; invert H1; eauto.
+
+    assert (~ vars e \subseteq pub) as Hsub.
+    {intro. assert (interp e v = interp e v2). simplify.
+    eapply interp_eq_when_vars_in; eauto. sets. }
+
+    pose (restrict_while_unaffected e body v' v2' pub H9); eauto.
+    simplify.
+    pose (restrict_unaffected v2 v' body pub ({ } \cup vars e)); eauto.
+    simplify.
+    rewrite e0. rewrite e1; eauto; sets.
+    sets.
+    eapply confidential_mono_dumb; eauto; sets.
+Qed.
+
+(* HINT 1-2 (see Pset8Sig.v) *)
 Theorem non_interference :
   forall pub c v1 v1' v2 v2',
     eval v1 c v1' ->
@@ -306,7 +540,10 @@ Theorem non_interference :
     same_public_state pub v1 v2 ->
     same_public_state pub v1' v2'.
 Proof.
-Admitted.
+  simplify.
+  unfold same_public_state in *.
+  apply eval_preserves_public_equiv with (pub := pub) (c := c) (v1:=v1)(v2:=v2); assumption.
+Qed.
 
 (*|
 Congratulations, you have proved that our type system is *sound*: it catches all leaky programs!
@@ -317,11 +554,20 @@ Can you give an example of a safe program (a program that does not leak data) th
 would reject?
 |*)
 
-Definition tricky_example : cmd. Admitted.
+Definition tricky_example : cmd := when "a" then "x" <- 0 else "x" <- 0 done.
 
 Lemma tricky_rejected : ~ Confidential pub_example {} tricky_example.
 Proof.
-Admitted.
+  unfold tricky_example, pub_example, not; intros H.
+  invert H; simplify.
+  invert H3; simplify.
+  - invert H5; simplify.
+    + sets.
+    + pose proof (@subseteq_In _ "a" _ _ H4); sets.
+  - invert H5; simplify.
+    + sets.
+    + pose proof (@subseteq_In _ "a" _ _ H6); sets.
+Qed.
 
 Lemma tricky_confidential :
   forall v1 v1' v2 v2',
@@ -330,7 +576,38 @@ Lemma tricky_confidential :
     same_public_state pub_example v1 v2 ->
     same_public_state pub_example v1' v2'.
 Proof.
-Admitted.
+  intros * He1 He2 Hsame.
+  unfold tricky_example, same_public_state in *.
+  invert He1; invert He2; try contradiction.
+  invert H5; invert H7; simplify.
+  excluded_middle ("x" \in pub_example).
+  rewrite restrict_add_in; eauto.
+  rewrite restrict_add_in; eauto.
+  invert Hsame; trivial.
+  rewrite restrict_add_not_in; eauto.
+  rewrite restrict_add_not_in; eauto.
+  invert H5; invert H7; simplify.
+  excluded_middle ("x" \in pub_example).
+  rewrite restrict_add_in; eauto.
+  rewrite restrict_add_in; eauto.
+  invert Hsame; trivial.
+  rewrite restrict_add_not_in; eauto.
+  rewrite restrict_add_not_in; eauto.
+  invert H5; invert H7; simplify.
+  excluded_middle ("x" \in pub_example).
+  rewrite restrict_add_in; eauto.
+  rewrite restrict_add_in; eauto.
+  invert Hsame; trivial.
+  rewrite restrict_add_not_in; eauto.
+  rewrite restrict_add_not_in; eauto.
+  invert H5; invert H7; simplify.
+  excluded_middle ("x" \in pub_example).
+  rewrite restrict_add_in; eauto.
+  rewrite restrict_add_in; eauto.
+  invert Hsame; trivial.
+  rewrite restrict_add_not_in; eauto.
+  rewrite restrict_add_not_in; eauto.
+Qed.
 End Impl.
 
 Module ImplCorrect : Pset8Sig.S := Impl.
