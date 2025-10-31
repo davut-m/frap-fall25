@@ -207,7 +207,7 @@ Module Type S.
     exists x y z,
       tr = [Out (max x (max y z)); In z; In y; In x].
 
-  (*[8%]*) Axiom max3_ok:
+  (*[8%] DONE*) Axiom max3_ok:
     <{ fun/inv tr _ _ => tr = [] }>
     max3
     <{ fun/inv tr' _ _ => max3_spec tr' }>.
@@ -218,19 +218,19 @@ Module Type S.
 
      "a" <- "a_orig";;
      "b" <- "b_orig";;
-   
+
      {{inv}}
      while !"a" = "b" loop
        when "a" < "b"
-         then "b" <- "b" - "a" 
+         then "b" <- "b" - "a"
          else "a" <- "a" - "b"
        done
      done;;
      output "a")%cmd.
 
   Parameter euclidean_algorithm_invariant : forall (a b: nat), assertion.
-  
-  (*[17%]*)Axiom euclidean_algorithm_ok : forall a b,
+
+  (*[17%] DONE*)Axiom euclidean_algorithm_ok : forall a b,
       <{ fun/inv tr h v =>
            0 < a /\ 0 < b /\
              tr = [] }>
@@ -238,7 +238,7 @@ Module Type S.
       <{ fun/inv tr h v =>
            v $! "a" = v $! "b"
            /\ exists d, tr = [Out d]/\ Nat.gcd a b = d }>.
-  
+
   Example fibonacci n inv :=
     ("cnt" <- 0;;
      "x" <- 0;;
@@ -262,7 +262,7 @@ Module Type S.
 
   Parameter fibonacci_invariant : forall (n: nat), assertion.
 
-  (*[17%]*) Axiom fibonacci_ok : forall (n: nat),
+  (*[17%] DONE*) Axiom fibonacci_ok : forall (n: nat),
     <{ fun/inv tr _ _ => tr = [] }>
     fibonacci n (fibonacci_invariant n)
     <{ fun/inv tr' _ _ => fibonacci_spec tr' }>.
@@ -286,7 +286,7 @@ Module Type S.
 
   Parameter fact_invariant : forall (n: nat), assertion.
 
-  (*[17%]*) Axiom fact_ok : forall (n: nat),
+  (*[17%] DONE*) Axiom fact_ok : forall (n: nat),
     <{ fun/inv tr _ v => tr = [] /\ v $! "n" = n }>
     fact (fact_invariant n)
     <{ fun/inv tr' _ _ => fact_spec n tr' }>.
@@ -320,7 +320,7 @@ Module Type S.
 
   Parameter mailbox_invariant : assertion.
 
-  (*[17%]*) Axiom mailbox_ok:
+  (*[17%] DONE*) Axiom mailbox_ok:
     <{ fun/inv tr h _ => tr = [] /\ h = $0 }>
     mailbox mailbox_invariant
     <{ fun/inv tr' h' _ => mailbox_done h' tr' }>.
@@ -398,7 +398,7 @@ In general, it pays to make the invariant as precise as possible.
 |*)
 
 (*|
-HINTS: A few hints to help you if you get stuck on certain 
+HINTS: A few hints to help you if you get stuck on certain
        problems in Pset 9.
        Beware! Don't read further if you don't want spoilers!
 =============================================================
