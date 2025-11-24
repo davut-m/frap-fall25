@@ -152,7 +152,7 @@ Proof.
   simp.
   (* We have reached the loop, and it's time to pick an invariant.  The
    * forgetful loop rule asks for both a precondition and a postcondition, so
-   * the [loop_inv] tactic takes both as separate arguments. 
+   * the [loop_inv] tactic takes both as separate arguments.
    *
    * The arguments to [loop_inv] are exactly the arguments for the precondition
    * and postcondition passed to [HtLoop]. The precondition is an assertion
@@ -308,8 +308,50 @@ Definition mtreep (p : nat) : hprop :=
    in the example above. *)
 
 (* Space is provided here for additional lemmas about [mtree] and [mtree']. *)
+Theorem mtree'_null : forall t p, p = 0 -> mtree' t p === [| t = Leaf |].
+Proof.
+  simplify; subst.
+  heq; cases t; cancel.
+Qed.
 
+Lemma mtree'_nonnull : forall t p,
+  p <> 0 ->
+  mtree' t p === exists l x r p1 p2,
+                  [| t = Node l x r |] * p |-->
+                        [p1; x; p2] * mtree' l p1 * mtree' r p2.
+Proof.
+  heq; cases t; cancel; try eauto; try equality.
+  invert H0.
+  cancel.
+Qed.
 
+Lemma mtree'_Leaf_nonnull : forall p, p <> 0 -> mtree' Leaf p === [| False |].
+Proof.
+  simplify; heq; cancel.
+Qed.
+
+Lemma mtree'_Node_nonnull : forall l x r p, p <> 0 ->
+  mtree' (Node l x r) p === exists p1 p2, p |--> [p1; x; p2] * mtree' l p1 * mtree' r p2.
+Proof.
+  simplify; heq; cancel.
+Qed.
+
+Theorem mtree_null : forall p, p = 0 -> mtree p === emp.
+Proof.
+  simp; unfold mtree; simplify.
+  heq; cancel.
+  setoid_rewrite (mtree'_null _); cancel.
+  setoid_rewrite (mtree'_null _); cancel.
+Qed.
+
+Theorem mtree_nonnull : forall p,
+  p <> 0 ->
+  mtree p === exists p1 x p2, p |--> [p1; x; p2] * mtree p1 * mtree p2.
+Proof.
+  simp; unfold mtree; simplify.
+  setoid_rewrite (mtree'_nonnull _ _ H).
+  heq; cancel.
+Qed.
 
 Opaque mtree.
 (* ^-- Keep predicates opaque after you've finished proving all the key
@@ -355,7 +397,38 @@ Theorem lookup_ok : forall x p,
     lookup x p
   {{ _ ~> mtreep p }}.
 Proof.
-Admitted.
+  unfold lookup.
+  simp; step; try step; try simp; try step.
+  loop_inv
+    (fun (acc : nat) => [| p <> 0 |] * p |-> r * mtree acc)%sep
+    (fun (acc:nat) (b:bool) => [| p <> 0 |] * p |-> r * mtree acc)%sep.
+
+  cases (acc ==n 0).
+  - simp; step; cancel.
+  - pose proof (mtree_nonnull acc) as H; rewrite H.
+    step.
+    -- step; simp; cancel.
+    -- cases (x ==n r0).
+      --- step; cancel; rewrite H0.
+          simp; eauto; cancel.
+      --- cases (x <=? r0).
+          ++simp; cancel; step.
+            simp; cancel; step.
+            simp; cancel; step.
+            eapply exis_right; eauto.
+            simp; cancel; rewrite H0.
+            simp; cancel.
+          ++simp; cancel; step.
+            simp; cancel; step.
+            simp; cancel; step.
+            eapply exis_right; eauto.
+            simp; cancel; rewrite H0.
+            simp; cancel.
+    -- eauto.
+  - simp; cancel.
+  - simp; cancel.
+    simp; unfold mtreep; cancel.
+Qed.
 
 (* And here's the operation to add a new key to a tree. *)
 Definition insert (x p : nat) :=
@@ -384,18 +457,98 @@ Definition insert (x p : nat) :=
         Return (Again (q + 1 + 1))
   done.
 
+
 (* Something very subtle happened in that loop: we iterated using a pointer into
    *the interior of a struct*, in each branch of the last [if]!  This is a fun
    example of the kinds of tricks that can be played in a low-level language,
    and the verification techniques are up to the challenge. *)
+
+
+  Theorem mtreep_unfold: forall p,
+    (mtreep p === exists p', ([| p <> 0 |] * (p |-> p' * mtree p')))
+    .
+  Proof.
+    unfold mtreep; simp;
+    heq; cancel; eauto.
+  Qed.
+
+  Lemma mtreep_nonsense: forall x acc r r0,
+    r <> 0 -> acc <> 0 -> (x <= r0 ->
+    mtreep r *
+    (exists n0 : nat,
+    mtree n0 * acc |-> r * (r + 1) |-> r0 *
+    (r + 1 + 1) |-> n0 *
+    [|(acc = 0 -> False) /\ x <= r0 /\
+    (r = 0 -> False)|]) ===>
+    mtreep acc) /\ ( r0 < x ->
+    mtreep (r + 1 + 1) *
+    (exists n0 : nat,
+    mtree n0 * acc |-> r * (r + 1) |-> r0 * r |-> n0 *
+    [|(acc = 0 -> False) /\ r0 < x /\ (r = 0 ->
+    False)|]) ===>
+    mtreep acc).
+Proof.
+    simp;
+    rewrite mtreep_unfold;
+    simp;
+    pose (mtree_nonnull _ H);
+    pose (mtreep_unfold acc);
+    rewrite h0;
+    cancel;
+    eapply mtree_nonnull in H;
+    rewrite H;
+    cancel.
+Qed.
+
 
 Theorem insert_ok : forall x p,
   {{ mtreep p }}
     insert x p
   {{ _ ~> mtreep p }}.
 Proof.
-Admitted.
+  unfold insert.
+  simp.
 
+  loop_inv (fun (r:nat)  => mtreep r) (fun (r:nat) (b:unit)  => mtreep r).
+  - simp.
+    cases (r ==n 0); simp.
+    + rewrite mtree_null by linear_arithmetic.
+      step; simp; cancel.
+      step; simp; cancel.
+      step; simp; cancel.
+      step; simp; cancel.
+      step; simp; cancel.
+      step; simp; cancel.
+      step; simp; cancel.
+      unfold mtreep.
+      simp; cancel.
+      simp; cancel.
+      rewrite mtree_nonnull by assumption.
+      cancel.
+      rewrite mtree_null by auto.
+      cancel.
+    + step; simp; cancel.
+      rewrite mtree_nonnull by assumption.
+      step; simp; cancel.
+      simp; cancel.
+      cases (x <=? r0).
+      ++ step.
+        eapply exis_right; eauto.
+        cancel; eauto.
+        rewrite mtreep_unfold.
+        cancel; eauto.
+
+        eapply mtreep_nonsense; eauto.
+      ++step.
+        eapply exis_right; eauto.
+        cancel; eauto.
+        rewrite mtreep_unfold.
+        cancel; eauto.
+
+        eapply mtreep_nonsense; eauto.
+  - trivial.
+  - trivial.
+Qed.
 End Impl.
 
 (* Our solution also includes a proof that the Hoare triples in this pset
